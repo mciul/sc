@@ -10,6 +10,7 @@ b = Buffer.read(s, "/Users/mciul/Music/samples/Birdsong-Dunnock.aiff");
 b = Buffer.read(s, "/Users/mciul/Music/samples/upenn_birdsong_20140505.aiff");
 c = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_blue_jay.aiff");
 b = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_wood_thrush.aiff");
+d = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_american_crow.aiff");
 
 (
 Instr(\sampleWalk,
@@ -28,8 +29,7 @@ Instr(\sampleWalk,
 	];
 );
 
-Instr(\sampleGrain,
-	{
+~sampleGrain = {
 		arg buffer=b, gate=1, start=0, dur=1, pitch=1, tempo=1, grainSize=0.17, overlap=7.58;
 		var end = start+((dur*tempo)/BufDur.kr(buffer));
 		var triggerRate = overlap/grainSize;
@@ -38,7 +38,10 @@ Instr(\sampleGrain,
 		var rate = tempo*BufRateScale.kr(buffer.bufnum)/buffer.numFrames;
 		var pos = Phasor.ar(gate, rate, start, end, start);
 		GrainBuf.ar(2, trigger, grainSize, buffer, pitch, pos, 2);
-	},
+	};
+
+Instr(\sampleGrain,
+	~sampleGrain,
 	#[
 		\buffer,
 		[0,1,\lin,1],
@@ -102,19 +105,23 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	var monitor,out;
 	var mintempo;
 	var in = SoundIn.ar();
-	var buffer=c;
-	var freq, hasFreq;
+	var buffer=d;
+	var freq1, hasFreq1, freq2, hasFreq2;
+	var loudness;
 	monitor = FbNode(2);
-	#freq, hasFreq = Pitch.kr(monitor);
+	#freq1, hasFreq1, freq2, hasFreq2= monitor.delay.rotate(1).collect({|in| Pitch.kr(in)}).flatten.postln;
 	fft = FFT(w, in+monitor.delay.sum);
 	// use SpecFlatness? SpecPcile? SpecCentroid?
 	#trackb, trackh, trackq, tempo = BeatTrack.kr(fft, 0);
+	loudness = Amplitude.kr(monitor).poll(2);
 	mintempo=BufDur.kr(buffer).reciprocal;
-	bird = Instr("sampleGrain").ar(buffer, 1,
-		Phasor.kr(0, tempo*ControlDur.ir/32), // start
+	// TODO: set dur as some multiple (fraction) of tempo
+	// where the factor changes to different discrete values
+	bird = ~sampleGrain.value(buffer, 1,
+		Latch.kr(max(0.octcps,freq1).cpsoct.mod(1),(hasFreq1)), // start
 		max(mintempo,tempo*4).reciprocal, // dur
-		freq[0]/440, // pitch
-		freq[1]/440  // tempo
+		freq2/440, // pitch
+		max(mintempo,loudness[1]*tempo*4).reciprocal  // tempo
 	);
 	beat = Instr(\stereoBeatZip).ar(in+bird,
 		tempo/4, // tempo
@@ -127,7 +134,7 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	//beat * (Ringz.ar(K2A.ar(trackb),22, mul:0.005) + Ringz.ar(K2A.ar(trackh), 550,mul:0.005) + Decay.kr(trackq, mul:0.15) + Decay2.ar(Impulse.ar(tempo/4),0.4,3,mul:0.7));
 	monitor.write(out);
 })
-
+0.octcps
 s.scope(2)
 play({Instr.ar("sampleWalk",[Dust.kr(7), LFNoise1.kr(2,1,1)])});
 
