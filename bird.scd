@@ -129,7 +129,7 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	mintempo=BufDur.kr(buffer).reciprocal;
 	// TODO: set dur as some multiple (fraction) of tempo
 	// where the factor changes to different discrete values
-	sampleStart = Latch.kr(max(0.octcps,freq2).cpsoct.mod(1),(hasFreq2-0.99));
+	sampleStart = Latch.kr(max(0.octcps,freq2).cpsoct.mod(1),(hasFreq2-1+Decay.kr(trackb,0.001)));
 	Poll(hasFreq2, freq2, "freq2");
 	Poll(hasFreq2, sampleStart, "sampleStart");
 	Poll(hasFreq1, freq1, "freq1");
