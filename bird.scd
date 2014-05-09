@@ -119,7 +119,10 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	freqDownbeat = Impulse.kr(0) + Trig1.kr(hasFreq1.clip + hasFreq2 - 2 + Decay.kr(trackb,0.01),0);
 	//Poll(hasFreq1, hasFreq1, "hasFreq1");
 	//Poll(hasFreq2, hasFreq2, "hasFreq2");
-	gate = SetResetFF.kr(freq1<50, freq1>4000);
+	// using freq1 triggers more overloads, but sometimes never recovers
+	// try tweaking values for freq2, since I think that is now used
+	// to control pitch
+	gate = SetResetFF.kr(freq2.lag(1)<100, freq2>4000);
 	Poll.kr(1-gate, PulseCount.kr(1-gate), "frequency overload");
 	Poll.kr(gate, Timer.kr(1-gate), "frequency recovery");// Timer not doing what I thought it would
 	sampleStartChange = freqDownbeat+Trig1.kr(gate,0);
@@ -142,8 +145,10 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	zipDelayChange = freqDownbeat + SetResetFF.kr(trackphrase, Changed.kr(tempo));
 	zipDelay = barDur * Latch.kr((freq1/freq2).cpsmidi.round.wrap(minBars,maxBars), zipDelayChange);
 	Poll(zipDelayChange, zipDelay, "zipDelay");
-	zipStretch = Latch.kr(max(0.25, Decay.kr(loudness[0], barDur, 0.1).round(1/6)), trackphrase);
-	zipSquash = Latch.kr(max(5/4, ((5/3-loudness[1])).round(1/4), trackphrase));
+	// multiply by gate so when frequency overloads, we use
+	// the minimum (lowest pitch) rate
+	zipStretch = Latch.kr(max(0.25, Decay.kr(loudness[0], barDur, 0.1*gate).round(1/6)), trackphrase);
+	zipSquash = Latch.kr(max(5/4, ((5/3-(loudness[1]*gate))).round(1/4), trackphrase));
 	// how close are sampleDur and zipDelay within an integer # of octaves?
 	// (calculating zipDirect this way might be a mistake if both
 	// are successfully set to multiples of barDur)
@@ -152,7 +157,7 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	// probably not what we want.
 	//zipDirect = Lag.kr((max(0.0442, sampleDur)/max(0.25,zipDelay)).log2.wrap(-0.5, 0.5).abs, 0.1, -200, 75).distort.madd(0.5,0.5);
 	// strong when two channels are the same
-	zipDirect = (loudness[0]-loudness[1]).lag(6).abs.madd(-4000,50).distort.madd(0.5,0.5);
+	zipDirect = (loudness[0]-loudness[1]).lag(6).abs.madd(-4000,50).distort.madd(0.5,0.5).lag(1.1-gate);
 	// strong when two channels are different
 	zipCross = (8*(loudness[0]-loudness[1]).abs).clip(0.1, max(1-zipDirect,0.5)).lag(1);
 	//Poll(2, zipDirect, "zipDirect");
