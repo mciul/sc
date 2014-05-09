@@ -54,44 +54,25 @@ Instr(\sampleGrain,
 	];
 );
 
-// TODO: change upSlew and downSlew to upRate and downRate
-Instr(\stereoBeatZip, {
-	arg in, tempo=1, upSlew=0.5, downSlew=0.5, directRegen=1, crossRegen=0.5, maxDelay=8, minDelay=0.1;
+~stereoBeatZip={
+	arg in, delay=1, stretchRate=0.5, squashRate=2, directRegen=1, crossRegen=0.5, maxDelay=8, minDelay=0.1;
+	var upSlew, downSlew;
 	var fbNode, feedback, fft, detected, times, slewed, out;
+	upSlew = 1-min(1,stretchRate);
+	downSlew = max(1,squashRate)-1;
+	//Poll(Impulse.kr(1), upSlew, "upSlew");
+	//Poll(Impulse.kr(1), downSlew, "downSlew");
 	fbNode = FbNode(2, minDelay, 4);
 	feedback = LeakDC.ar(fbNode.delay(0.1));
-	detected = max(tempo, maxDelay.reciprocal).reciprocal;
+	detected = delay;
 	times = [detected, LastValue.kr(detected)] - minDelay;
-	slewed = Slew.kr(times, upSlew, downSlew);
+	slewed = Slew.kr(times, upSlew, downSlew);//.poll(0.5);
 	out = DelayC.ar(feedback, maxDelay-minDelay, slewed);
 	fbNode.write(Limiter.ar(in + (directRegen*out) + (crossRegen*out.rotate(1)), dur:minDelay));
 	out;
-});
-)
+};
 
-(
-
-// a fun experiment, but let's use BeatTrack instead
-Instr(\guessBeat, { arg in;
-	var maxTime=8, minTime=0.1;
-	var delayed = in;
-	var chosenTime = maxTime;
-	var delayTime = maxTime;
-	while( {delayTime > minTime}, {
-		var choice, choices, diffs, mean, delays, lags;
-		delayTime = delayTime / 2;
-		choices = chosenTime - [0, delayTime];
-		delays = DelayN.kr(delayed, [choices], [choices]);
-		diffs = delays.lag(choices/2) - in.lag(choices/2);
-		mean = Decay.kr(diffs.squared, choices);
-		choice = diffs[1] < diffs[0];
-		delayed = Select.kr(choice, delays);
-		chosenTime = Select.kr(choice, choices);
-	});
-	Poll(Impulse.kr(2), chosenTime, "chosenTime");
-	chosenTime;
-});
-
+Instr(\stereoBeatZip, ~stereoBeatZip);
 )
 
 w.free
@@ -100,7 +81,7 @@ w = Buffer.alloc(s,1024,1);
 play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 
 (play{
-	var fft, trackb, trackh, trackq, tempo;
+	var fft, trackb, trackh, trackq, tempo, barDur, trackphrase, tracksample;
 	var bird, beat;
 	var monitor, monitor_in, monitor_mono, out;
 	var mintempo;
@@ -108,50 +89,89 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	var buffer=d;
 	var freq1, hasFreq1, freq2, hasFreq2;
 	var loudness;
-	var sampleStart, sampleDur, samplePitch, sampleTempo;
+	var gate, sampleStart, sampleDur, samplePitch, sampleStartChange, sampleTempo;
+	var zipDelay, zipStretch, zipSquash, zipDirect, zipCross, maxBars, minBars, zipDelayChange;
+	var freqDownbeat;
 	monitor = FbNode(2);
 	monitor_in = monitor.delay;
-	monitor_mono = monitor_in.sum;
-	fft = FFT(w, in+monitor_mono);
+	fft = FFT(w, in+monitor_in.sum);
 	// only second channel works with Pitch when using FbNode, don't know why
 	//#freq1, hasFreq1, freq2, hasFreq2= monitor.delay.rotate(1).collect({|in| Pitch.kr(in)}).flatten.postln;
-	freq1 = ZeroCrossing.ar(LPF.ar(monitor_in[0], 100));
+	freq1 = A2K.kr(ZeroCrossing.ar(LPF.ar(monitor_in[0], 100)));
 	// try this? // hasFreq2 = Onsets.kr(fft, odftype:\wphase);
 	// hacky check for low rate of freq1 change:
 	// multiply by freq1 so 0 freq never registers as pitch
 	// subtract from lag to see if it's changed recently
 	// threshold: change < 1 Hz
 	hasFreq1 = freq1*(1-abs(freq1.lag(0.3) - freq1));
+	freq1 = max(12.midicps, freq1);
 	#freq2, hasFreq2 = Pitch.kr(monitor_in[1],clar:1);
+	//Poll(hasFreq2, freq2, "freq2");
+	//Poll(hasFreq1, freq1, "freq1");
 	// use SpecFlatness? SpecPcile? SpecCentroid? KeyTrack?
 	#trackb, trackh, trackq, tempo = BeatTrack.kr(fft, 0);
-	loudness = Amplitude.kr(monitor);
+	trackphrase = PulseDivider.kr(trackb, 8);
 	mintempo=BufDur.kr(buffer).reciprocal;
-	// TODO: set dur as some multiple (fraction) of tempo
-	// where the factor changes to different discrete values
-	sampleStart = Latch.kr(max(0.octcps,freq2).cpsoct.mod(1),(hasFreq2-1+Decay.kr(trackb,0.001)));
-	Poll(hasFreq2, freq2, "freq2");
-	Poll(hasFreq2, sampleStart, "sampleStart");
-	Poll(hasFreq1, freq1, "freq1");
-	bird = ~sampleGrain.value(buffer, 1,
-		sampleStart, // start
-		max(mintempo,tempo*4).reciprocal, // dur
-		Latch.ar(freq1/660, hasFreq1), // pitch
-		max(mintempo,loudness[1]*tempo*4).reciprocal  // tempo
+	barDur=(max(mintempo, tempo)).reciprocal;
+	loudness = Amplitude.kr(monitor_in);
+	// freqDownbeat is a trigger that signals multiple pitch
+	// events happening on a downbeat
+	freqDownbeat = Impulse.kr(0) + Trig1.kr(hasFreq1.clip + hasFreq2 - 2 + Decay.kr(trackb,0.01),0);
+	//Poll(hasFreq1, hasFreq1, "hasFreq1");
+	//Poll(hasFreq2, hasFreq2, "hasFreq2");
+	gate = SetResetFF.kr(freq1<50, freq1>4000);
+	Poll.kr(1-gate, PulseCount.kr(1-gate), "frequency overload");
+	Poll.kr(gate, Timer.kr(1-gate), "frequency recovery");// Timer not doing what I thought it would
+	sampleStartChange = freqDownbeat+Trig1.kr(gate,0);
+	sampleStart = Latch.kr(freq1.cpsoct.mod(1), sampleStartChange);
+	Poll(sampleStartChange, sampleStart, "sampleStart");
+	sampleDur = Latch.kr(2.pow(loudness[0].madd(12,-8).round)*tempo*16, trackphrase);
+	tracksample = PulseDivider.kr(trackb, max(1,sampleDur*2/barDur));
+	gate = gate - tracksample;
+	sampleDur = sampleDur * Latch.kr((0.2+loudness[1]-loudness[0]).sign, trackb);
+	//samplePitch = Latch.ar(((freq1.cpsmidi-76).wrap(-36,12)).midiratio, hasFreq1);
+	samplePitch = Latch.kr(freq2/660, hasFreq2);
+	sampleTempo = max(mintempo, loudness[1]*tempo*4).reciprocal;
+	//Poll(gate, PulseCount.kr(gate), "gate");
+	//Poll(trackh, sampleDur, "sampleDur");
+	//Poll(hasFreq1, samplePitch, "samplePitch");
+	bird = ~sampleGrain.value(buffer, gate, sampleStart, sampleDur, samplePitch, sampleTempo);
+	maxBars = max(1,(8/barDur).floor);
+	//Poll(trackb, maxBars*barDur, "max delay");
+	minBars = (0.25/barDur).ceil;
+	zipDelayChange = freqDownbeat + SetResetFF.kr(trackphrase, Changed.kr(tempo));
+	zipDelay = barDur * Latch.kr((freq1/freq2).cpsmidi.round.wrap(minBars,maxBars), zipDelayChange);
+	Poll(zipDelayChange, zipDelay, "zipDelay");
+	zipStretch = Latch.kr(max(0.25, Decay.kr(loudness[0], barDur, 0.1).round(1/6)), trackphrase);
+	zipSquash = Latch.kr(max(5/4, ((5/3-loudness[1])).round(1/4), trackphrase));
+	// how close are sampleDur and zipDelay within an integer # of octaves?
+	// (calculating zipDirect this way might be a mistake if both
+	// are successfully set to multiples of barDur)
+	// in practice this means zipDirect is momentarily squashed
+	// when the delay time is changing, then it returns to normal.
+	// probably not what we want.
+	//zipDirect = Lag.kr((max(0.0442, sampleDur)/max(0.25,zipDelay)).log2.wrap(-0.5, 0.5).abs, 0.1, -200, 75).distort.madd(0.5,0.5);
+	// strong when two channels are the same
+	zipDirect = (loudness[0]-loudness[1]).lag(6).abs.madd(-4000,50).distort.madd(0.5,0.5);
+	// strong when two channels are different
+	zipCross = (8*(loudness[0]-loudness[1]).abs).clip(0.1, max(1-zipDirect,0.5)).lag(1);
+	//Poll(2, zipDirect, "zipDirect");
+	//Poll(2, zipCross, "zipcross");
+	beat = ~stereoBeatZip.value(in+bird,
+		zipDelay, // tempo
+		zipStretch, // stretchRate
+		zipSquash, // squashRate
+		zipDirect,  // directRegen
+		zipCross // crossRegen
 	);
-	beat = Instr(\stereoBeatZip).ar(in+bird,
-		tempo/4, // tempo
-		0.5, // upSlew
-		0.5, // downSlew
-		SetResetFF.kr(PulseDivider.kr(trackb, 4), PulseDivider.kr(trackq, 27)).lag(0.1),  // directRegen
-		SetResetFF.kr(PulseDivider.kr(trackb, 2), PulseDivider.kr(trackh, 31)).lag(1)*0.5, // crossRegen
-	);
-	out = bird+beat;
+	out = Pan2.ar(bird, 0.2)+beat;
 	//beat * (Ringz.ar(K2A.ar(trackb),22, mul:0.005) + Ringz.ar(K2A.ar(trackh), 550,mul:0.005) + Decay.kr(trackq, mul:0.15) + Decay2.ar(Impulse.ar(tempo/4),0.4,3,mul:0.7));
 	monitor.write(out);
 })
-2.log2
-s.scope(2)
+
+2.pow(-3.5)
+2.pow(1)
+0.5.log2
 play({Instr.ar("sampleWalk",[Dust.kr(7), LFNoise1.kr(2,1,1)])});
 
 play({Instr.ar("sampleGrain", [c, 1, 0, 1, MouseX.kr(0,1), MouseY.kr(0,1)])});
@@ -173,3 +193,4 @@ play({
 	monitor_in[0];
 })
 )
+
