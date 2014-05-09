@@ -102,25 +102,41 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 (play{
 	var fft, trackb, trackh, trackq, tempo;
 	var bird, beat;
-	var monitor,out;
+	var monitor, monitor_in, monitor_mono, out;
 	var mintempo;
 	var in = SoundIn.ar();
 	var buffer=d;
 	var freq1, hasFreq1, freq2, hasFreq2;
 	var loudness;
+	var sampleStart, sampleDur, samplePitch, sampleTempo;
 	monitor = FbNode(2);
-	#freq1, hasFreq1, freq2, hasFreq2= monitor.delay.rotate(1).collect({|in| Pitch.kr(in)}).flatten.postln;
-	fft = FFT(w, in+monitor.delay.sum);
-	// use SpecFlatness? SpecPcile? SpecCentroid?
+	monitor_in = monitor.delay;
+	monitor_mono = monitor_in.sum;
+	fft = FFT(w, in+monitor_mono);
+	// only second channel works with Pitch when using FbNode, don't know why
+	//#freq1, hasFreq1, freq2, hasFreq2= monitor.delay.rotate(1).collect({|in| Pitch.kr(in)}).flatten.postln;
+	freq1 = ZeroCrossing.ar(LPF.ar(monitor_in[0], 100));
+	// try this? // hasFreq2 = Onsets.kr(fft, odftype:\wphase);
+	// hacky check for low rate of freq1 change:
+	// multiply by freq1 so 0 freq never registers as pitch
+	// subtract from lag to see if it's changed recently
+	// threshold: change < 1 Hz
+	hasFreq1 = freq1*(1-abs(freq1.lag(0.3) - freq1));
+	#freq2, hasFreq2 = Pitch.kr(monitor_in[1],clar:1);
+	// use SpecFlatness? SpecPcile? SpecCentroid? KeyTrack?
 	#trackb, trackh, trackq, tempo = BeatTrack.kr(fft, 0);
-	loudness = Amplitude.kr(monitor).poll(2);
+	loudness = Amplitude.kr(monitor);
 	mintempo=BufDur.kr(buffer).reciprocal;
 	// TODO: set dur as some multiple (fraction) of tempo
 	// where the factor changes to different discrete values
+	sampleStart = Latch.kr(max(0.octcps,freq2).cpsoct.mod(1),(hasFreq2-0.99));
+	Poll(hasFreq2, freq2, "freq2");
+	Poll(hasFreq2, sampleStart, "sampleStart");
+	Poll(hasFreq1, freq1, "freq1");
 	bird = ~sampleGrain.value(buffer, 1,
-		Latch.kr(max(0.octcps,freq1).cpsoct.mod(1),(hasFreq1)), // start
+		sampleStart, // start
 		max(mintempo,tempo*4).reciprocal, // dur
-		freq2/440, // pitch
+		Latch.ar(freq1/660, hasFreq1), // pitch
 		max(mintempo,loudness[1]*tempo*4).reciprocal  // tempo
 	);
 	beat = Instr(\stereoBeatZip).ar(in+bird,
@@ -134,7 +150,7 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	//beat * (Ringz.ar(K2A.ar(trackb),22, mul:0.005) + Ringz.ar(K2A.ar(trackh), 550,mul:0.005) + Decay.kr(trackq, mul:0.15) + Decay2.ar(Impulse.ar(tempo/4),0.4,3,mul:0.7));
 	monitor.write(out);
 })
-0.octcps
+2.log2
 s.scope(2)
 play({Instr.ar("sampleWalk",[Dust.kr(7), LFNoise1.kr(2,1,1)])});
 
@@ -143,3 +159,17 @@ play({Instr.ar("sampleGrain", [b, 1, LFNoise1.kr(0.7,0.5,0.5), LinExp.kr(LFNoise
 
 s.scope(2)
 
+(
+play({
+	var freq1, hasFreq1, freq2, hasFreq2, s;
+	var monitor = FbNode(2);
+	var monitor_in = monitor.delay;
+	#freq1, hasFreq1 = Pitch.kr(monitor_in[1], execFreq:60, peakThreshold:0.1,clar:1);
+	#freq2, hasFreq2 = Pitch.kr(monitor_in[0],clar:1);
+	Poll.kr(Impulse.kr(2), RunningMax.kr(hasFreq1, Impulse.kr(2)), "hasFreq1");
+	Poll.kr(Impulse.kr(2), freq1, "freq1");
+	Poll.kr(Impulse.kr(2), freq2, "freq2");
+	monitor.write(SinOsc.ar([200,100]));
+	monitor_in[0];
+})
+)
