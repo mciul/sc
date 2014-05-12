@@ -60,8 +60,9 @@ Instr(\sampleGrain,
 	var fbNode, feedback, fft, detected, times, slewed, out;
 	upSlew = 1-min(1,stretchRate);
 	downSlew = max(1,squashRate)-1;
-	//Poll(Impulse.kr(1), upSlew, "upSlew");
-	//Poll(Impulse.kr(1), downSlew, "downSlew");
+	//Poll(Impulse.kr(0)+Changed.kr(squashRate), squashRate, "squashRate");
+	Poll(Changed.kr(upSlew), upSlew, "upSlew");
+	Poll(Impulse.kr(0)+Changed.kr(downSlew), downSlew, "downSlew");
 	fbNode = FbNode(2, minDelay, 4);
 	feedback = LeakDC.ar(fbNode.delay(0.1));
 	detected = delay;
@@ -119,24 +120,28 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	freqDownbeat = Impulse.kr(0) + Trig1.kr(hasFreq1.clip + hasFreq2 - 2 + Decay.kr(trackb,0.01),0);
 	//Poll(hasFreq1, hasFreq1, "hasFreq1");
 	//Poll(hasFreq2, hasFreq2, "hasFreq2");
+	//Poll(0.5, freq2, "freq2");
 	// using freq1 triggers more overloads, but sometimes never recovers
 	// try tweaking values for freq2, since I think that is now used
 	// to control pitch
-	gate = SetResetFF.kr(freq2.lag(1)<100, freq2>4000);
+	gate = SetResetFF.kr(freq2.lag(1)<100, freq2>3800);
 	Poll.kr(1-gate, PulseCount.kr(1-gate), "frequency overload");
 	Poll.kr(gate, Timer.kr(1-gate), "frequency recovery");// Timer not doing what I thought it would
 	sampleStartChange = freqDownbeat+Trig1.kr(gate,0);
 	sampleStart = Latch.kr(freq1.cpsoct.mod(1), sampleStartChange);
 	Poll(sampleStartChange, sampleStart, "sampleStart");
-	sampleDur = Latch.kr(2.pow(loudness[0].madd(12,-8).round)*tempo*16, trackphrase);
+	sampleDur = Latch.kr(2.pow(loudness[0].madd(14,-8).round)*tempo*16, trackphrase);
 	tracksample = PulseDivider.kr(trackb, max(1,sampleDur*2/barDur));
 	gate = gate - tracksample;
 	sampleDur = sampleDur * Latch.kr((0.2+loudness[1]-loudness[0]).sign, trackb);
+	Poll(trackphrase, sampleDur, "sampleDur");
 	//samplePitch = Latch.ar(((freq1.cpsmidi-76).wrap(-36,12)).midiratio, hasFreq1);
-	samplePitch = Latch.kr(freq2/660, hasFreq2);
-	sampleTempo = max(mintempo, loudness[1]*tempo*4).reciprocal;
+	samplePitch = Latch.kr(freq2/880, hasFreq2);
+	// TODO: some rhythmic meaning for sampleTempo?
+	// slightly bigger range - 1/16-2 or so
+	sampleTempo = (110/freq1).lag(max(mintempo, tempo).reciprocal);
+	Poll(trackphrase, sampleTempo, "sampleTempo");
 	//Poll(gate, PulseCount.kr(gate), "gate");
-	//Poll(trackh, sampleDur, "sampleDur");
 	//Poll(hasFreq1, samplePitch, "samplePitch");
 	bird = ~sampleGrain.value(buffer, gate, sampleStart, sampleDur, samplePitch, sampleTempo);
 	maxBars = max(1,(8/barDur).floor);
@@ -148,7 +153,7 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	// multiply by gate so when frequency overloads, we use
 	// the minimum (lowest pitch) rate
 	zipStretch = Latch.kr(max(0.25, Decay.kr(loudness[0], barDur, 0.1*gate).round(1/6)), trackphrase);
-	zipSquash = Latch.kr(max(5/4, ((5/3-(loudness[1]*gate))).round(1/4), trackphrase));
+	zipSquash = Latch.kr(max(5/4, ((gate*5/3)-loudness[1]).round(1/4)), trackphrase);
 	// how close are sampleDur and zipDelay within an integer # of octaves?
 	// (calculating zipDirect this way might be a mistake if both
 	// are successfully set to multiples of barDur)
