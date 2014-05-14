@@ -74,7 +74,39 @@ Instr(\sampleGrain,
 };
 
 Instr(\stereoBeatZip, ~stereoBeatZip);
+
+~vocoder={ arg in, func, boundaries=[20, 160, 600, 2000, 6000, 20000];
+	var low_bound = boundaries[0..boundaries.size-2];
+	var cutoff = low_bound.collect({|b,i|
+		var rq=0.8;
+		[boundaries[i], (1 - (rq/2)) * boundaries[i+1], rq]});
+	var vocoder, bands, mix;
+
+	vocoder = cutoff.collect({ |range, i|
+		RHPF.ar(RLPF.ar(in,range[1], range[2]), range[0], range[2]);
+	});
+
+	bands = cutoff.collect({|range, i| func.value(vocoder[i], range[0], range[1])});
+	mix = Mix.new(bands);
+};
+
+~octave={arg in, lowFreq=20, hiFreq=20000;
+		in * ToggleFF.ar(in);
+};
+
+~halfShift={arg in, lowFreq=20, hiFreq=20000;
+	var freq = Median.ar(31,ZeroCrossing.ar(in));
+	FreqShift.ar(in, Median.kr(31, A2K.kr(freq),-0.5));
+};
+
+~ctrlDist={
+	arg in, gain=100, center=0.5, min=0, max=1;
+	var mid=(max-min)/2;
+	(in-center).madd(gain,0).distort.madd(mid, min+mid);
+};
 )
+
+play({var in=Blip.ar(MouseX.kr(160,600), MouseY.kr(1,200)); [~vocoder.(in, ~halfShift), in]})
 
 w.free
 w = Buffer.alloc(s,1024,1);
@@ -84,14 +116,14 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 (play{
 	var fft, trackb, trackh, trackq, tempo, barDur, trackphrase, tracksample;
 	var bird, beat;
-	var monitor, monitor_in, monitor_mono, out;
+	var monitor, monitor_in, monitor_mono, shifted, out;
 	var mintempo;
 	var in = SoundIn.ar();
 	var buffer=d;
 	var freq1, hasFreq1, freq2, hasFreq2;
-	var loudness;
-	var gate, sampleStart, sampleDur, samplePitch, sampleStartChange, sampleTempo;
-	var zipDelay, zipStretch, zipSquash, zipDirect, zipCross, maxBars, minBars, zipDelayChange;
+	var loudness, stereoSpread;
+	var pulse, gate, sampleStart, sampleDur, samplePitch, sampleStartChange, sampleTempo;
+	var zipTrigger, zipDelay, zipStretch, zipSquash, zipDirect, zipCross, maxBars, minBars, zipDelayChange;
 	var freqDownbeat;
 	monitor = FbNode(2);
 	monitor_in = monitor.delay;
@@ -115,6 +147,7 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	mintempo=BufDur.kr(buffer).reciprocal;
 	barDur=(max(mintempo, tempo)).reciprocal;
 	loudness = Amplitude.kr(monitor_in);
+	stereoSpread = (loudness[1]-loudness[0]).abs;
 	// freqDownbeat is a trigger that signals multiple pitch
 	// events happening on a downbeat
 	freqDownbeat = Impulse.kr(0) + Trig1.kr(hasFreq1.clip + hasFreq2 - 2 + Decay.kr(trackb,0.01),0);
@@ -124,7 +157,7 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	// using freq1 triggers more overloads, but sometimes never recovers
 	// try tweaking values for freq2, since I think that is now used
 	// to control pitch
-	gate = SetResetFF.kr(freq2.lag(1)<100, freq2>3800);
+	gate = SetResetFF.kr(freq2.lag(1)<70, freq2>3800);
 	Poll.kr(1-gate, PulseCount.kr(1-gate), "frequency overload");
 	Poll.kr(gate, Timer.kr(1-gate), "frequency recovery");// Timer not doing what I thought it would
 	sampleStartChange = freqDownbeat+Trig1.kr(gate,0);
@@ -132,15 +165,14 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	Poll(sampleStartChange, sampleStart, "sampleStart");
 	sampleDur = Latch.kr(2.pow(loudness[0].madd(14,-8).round)*tempo*16, trackphrase);
 	tracksample = PulseDivider.kr(trackb, max(1,sampleDur*2/barDur));
-	gate = gate - tracksample;
+	gate = gate * (1 - tracksample);
 	sampleDur = sampleDur * Latch.kr((0.2+loudness[1]-loudness[0]).sign, trackb);
-	Poll(trackphrase, sampleDur, "sampleDur");
-	//samplePitch = Latch.ar(((freq1.cpsmidi-76).wrap(-36,12)).midiratio, hasFreq1);
+	//Poll(trackphrase, sampleDur, "sampleDur");
 	samplePitch = Latch.kr(freq2/880, hasFreq2);
-	// TODO: some rhythmic meaning for sampleTempo?
-	// slightly bigger range - 1/16-2 or so
-	sampleTempo = (110/freq1).lag(max(mintempo, tempo).reciprocal);
-	Poll(trackphrase, sampleTempo, "sampleTempo");
+	// bird is in channel 0, so louder 0 means more bird
+	// let's make the bird play slower when it's louder
+	sampleTempo = 4.pow(((loudness[1]*20)-(loudness[0]*50)).distort);
+	//Poll(trackphrase, sampleTempo, "sampleTempo");
 	//Poll(gate, PulseCount.kr(gate), "gate");
 	//Poll(hasFreq1, samplePitch, "samplePitch");
 	bird = ~sampleGrain.value(buffer, gate, sampleStart, sampleDur, samplePitch, sampleTempo);
@@ -152,21 +184,22 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	Poll(zipDelayChange, zipDelay, "zipDelay");
 	// multiply by gate so when frequency overloads, we use
 	// the minimum (lowest pitch) rate
-	zipStretch = Latch.kr(max(0.25, Decay.kr(loudness[0], barDur, 0.1*gate).round(1/6)), trackphrase);
-	zipSquash = Latch.kr(max(5/4, ((gate*5/3)-loudness[1]).round(1/4)), trackphrase);
+	zipTrigger=SetResetFF.kr(trackphrase, zipDelayChange);
+	zipStretch = Latch.kr(max(0.25, Decay.kr(loudness[0], barDur, 0.1*gate).round(1/2)), zipTrigger);
+	zipSquash = Latch.kr(max(5/4, ((5/3)-loudness[1]).round(1/4)), zipTrigger);
 	// how close are sampleDur and zipDelay within an integer # of octaves?
 	// (calculating zipDirect this way might be a mistake if both
 	// are successfully set to multiples of barDur)
 	// in practice this means zipDirect is momentarily squashed
 	// when the delay time is changing, then it returns to normal.
 	// probably not what we want.
-	//zipDirect = Lag.kr((max(0.0442, sampleDur)/max(0.25,zipDelay)).log2.wrap(-0.5, 0.5).abs, 0.1, -200, 75).distort.madd(0.5,0.5);
 	// strong when two channels are the same
-	zipDirect = (loudness[0]-loudness[1]).lag(6).abs.madd(-4000,50).distort.madd(0.5,0.5).lag(1.1-gate);
-	// strong when two channels are different
-	zipCross = (8*(loudness[0]-loudness[1]).abs).clip(0.1, max(1-zipDirect,0.5)).lag(1);
-	//Poll(2, zipDirect, "zipDirect");
-	//Poll(2, zipCross, "zipcross");
+	// zipDirect is strong when stereo spread is decreasing
+	zipDirect = Latch.kr(~ctrlDist.(stereoSpread.lag(barDur/2)-stereoSpread.lag(barDur*2),10000,0.01,1,0),trackh).lag(1.1-gate);
+	// zipcross is strong when two channels are different
+	zipCross = Latch.kr(~ctrlDist.(stereoSpread.lag(barDur*4), 8, 0.01, gate/2, max(1-zipDirect,1/2)),trackphrase).lag(barDur/4);
+	//Poll(TDelay.kr(trackb,0.1), zipDirect, "zipDirect");
+	//Poll(TDelay.kr(trackphrase, barDur/4), zipCross, "zipcross");
 	beat = ~stereoBeatZip.value(in+bird,
 		zipDelay, // tempo
 		zipStretch, // stretchRate
@@ -174,21 +207,29 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 		zipDirect,  // directRegen
 		zipCross // crossRegen
 	);
-	out = Pan2.ar(bird, 0.2)+beat;
+	//shifted=FreqShift.ar(beat, -0.75*[freq1, freq2]);
+	shifted=~vocoder.(beat, ~halfShift, Array.geom(21, 20, 1.414));
+	out = Pan2.ar(bird, 0.2)+SelectX.ar(gate.lag(barDur*4), [shifted, beat]);
 	//beat * (Ringz.ar(K2A.ar(trackb),22, mul:0.005) + Ringz.ar(K2A.ar(trackh), 550,mul:0.005) + Decay.kr(trackq, mul:0.15) + Decay2.ar(Impulse.ar(tempo/4),0.4,3,mul:0.7));
 	monitor.write(out);
 })
 
-2.pow(-3.5)
-2.pow(1)
-0.5.log2
+Array.geom(21, 20, 1.414).round
+
+
+(~ctrlDist.(0.007, 8, 0.125, gate/2, max(1-zipDirect,1/2)),trackphrase)
+
 play({Instr.ar("sampleWalk",[Dust.kr(7), LFNoise1.kr(2,1,1)])});
 
 play({Instr.ar("sampleGrain", [c, 1, 0, 1, MouseX.kr(0,1), MouseY.kr(0,1)])});
 play({Instr.ar("sampleGrain", [b, 1, LFNoise1.kr(0.7,0.5,0.5), LinExp.kr(LFNoise1.kr(0.14),-1,1,0.001,1), LFNoise0.kr(0.03,0.7,0.7), LFNoise1.kr(0.1,0.3,0.3)])});
 
-s.scope(2)
+play({var in=Saw.ar([440, 550]); SelectX.ar(MouseX.kr(0,1), [FreqShift.ar(in, [220, 275]), in])})
 
+s.scope(2)
+s.prepareForRecord
+s.record
+s.stopRecording
 (
 play({
 	var freq1, hasFreq1, freq2, hasFreq2, s;
