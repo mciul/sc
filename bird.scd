@@ -12,6 +12,10 @@ c = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_blue_jay.aiff");
 b = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_wood_thrush.aiff");
 d = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_american_crow.aiff");
 
+w.free
+w = Buffer.alloc(s,1024,1);
+
+
 (
 Instr(\sampleWalk,
 	{
@@ -55,21 +59,23 @@ Instr(\sampleGrain,
 );
 
 ~stereoBeatZip={
-	arg in, delay=1, stretchRate=0.5, squashRate=2, directRegen=1, crossRegen=0.5, maxDelay=8, minDelay=0.1;
+	arg in, delay=1, stretchRate=0.5, squashRate=2, directRegen=1, crossRegen=0.5, gate=1, maxDelay=8, minDelay=0.1;
 	var upSlew, downSlew;
 	var fbNode, feedback, fft, detected, times, slewed, out;
+	var limiterDelay;
 	upSlew = 1-min(1,stretchRate);
 	downSlew = max(1,squashRate)-1;
 	//Poll(Impulse.kr(0)+Changed.kr(squashRate), squashRate, "squashRate");
 	Poll(Changed.kr(upSlew), upSlew, "upSlew");
 	Poll(Impulse.kr(0)+Changed.kr(downSlew), downSlew, "downSlew");
 	fbNode = FbNode(2, minDelay, 4);
-	feedback = LeakDC.ar(fbNode.delay(0.1));
+	limiterDelay = minDelay - ControlDur.ir;
+	feedback = LeakDC.ar(fbNode.delay(ControlDur.ir));
 	detected = delay;
 	times = [detected, LastValue.kr(detected)] - minDelay;
 	slewed = Slew.kr(times, upSlew, downSlew);//.poll(0.5);
 	out = DelayC.ar(feedback, maxDelay-minDelay, slewed);
-	fbNode.write(Limiter.ar(in + (directRegen*out) + (crossRegen*out.rotate(1)), dur:minDelay));
+	fbNode.write(Limiter.ar(in + (directRegen*out) + (crossRegen*out.rotate(1)), dur:limiterDelay));
 	out;
 };
 
@@ -107,9 +113,6 @@ Instr(\stereoBeatZip, ~stereoBeatZip);
 )
 
 play({var in=Blip.ar(MouseX.kr(160,600), MouseY.kr(1,200)); [~vocoder.(in, ~halfShift), in]})
-
-w.free
-w = Buffer.alloc(s,1024,1);
 
 play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 
@@ -168,7 +171,7 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	gate = gate * (1 - tracksample);
 	sampleDur = sampleDur * Latch.kr((0.2+loudness[1]-loudness[0]).sign, trackb);
 	//Poll(trackphrase, sampleDur, "sampleDur");
-	samplePitch = Latch.kr(freq2/880, hasFreq2);
+	samplePitch = Latch.kr(freq2/880, hasFreq2 * trackq);
 	// bird is in channel 0, so louder 0 means more bird
 	// let's make the bird play slower when it's louder
 	sampleTempo = 4.pow(((loudness[1]*20)-(loudness[0]*50)).distort);
@@ -185,19 +188,11 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	// multiply by gate so when frequency overloads, we use
 	// the minimum (lowest pitch) rate
 	zipTrigger=SetResetFF.kr(trackphrase, TDelay.kr(zipDelayChange,barDur/8));
-	zipStretch = Latch.kr(max(0.25, Decay.kr(loudness[0], barDur, 0.1*gate).round(1/2)), zipTrigger);
-	// increas probability of 1/3 and 1 as zipSquash values? It's usually 1/2
-	zipSquash = Latch.kr(max(4/3, loudness[1].madd(-1.5, 1.5).round(1/2)), zipTrigger);
+	zipStretch = Latch.kr(Decay.kr(loudness[0], barDur, 0.1*gate).round(1/2).clip(0.25, 0.5), zipTrigger);
+	zipSquash = Latch.kr(loudness[1].madd(-3, 2.5).round(1/2).clip(4/3, 2), zipTrigger);
 	//Poll(trackphrase, zipTrigger, "zipTrigger");
 	//Poll(zipTrigger, zipSquash, "zipSquash");
-	// how close are sampleDur and zipDelay within an integer # of octaves?
-	// (calculating zipDirect this way might be a mistake if both
-	// are successfully set to multiples of barDur)
-	// in practice this means zipDirect is momentarily squashed
-	// when the delay time is changing, then it returns to normal.
-	// probably not what we want.
-	// strong when two channels are the same
-	// zipDirect is strong when stereo spread is decreasing
+	// zipDirect is stereo, open gate during attacks
 	zipDirect = Latch.kr(~ctrlDist.(loudness.lag(barDur/4)-loudness.lag(barDur),10000,0.01,1,0),trackh).lag(1.1-gate);
 	// zipcross is strong when two channels are different
 	zipCross = Latch.kr(~ctrlDist.(stereoSpread.lag(barDur*4), 8, 0.01, gate/2, max(1-zipDirect,1/2)),trackphrase).lag(barDur/4);
@@ -208,11 +203,14 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 		zipStretch, // stretchRate
 		zipSquash, // squashRate
 		zipDirect,  // directRegen
-		zipCross // crossRegen
+		zipCross, // crossRegen
+		gate
 	);
-	shifted=FreqShift.ar(beat, -0.75*[freq1, freq2]);
+	// shifted should be inside the feedback loop of stereoBeatZip
+	//shifted=FreqShift.ar(beat, -0.75*[freq1, freq2]);
 	//shifted=~vocoder.(beat, ~halfShift, Array.geom(21, 20, 1.414));
-	out = Pan2.ar(bird, 0.2)+SelectX.ar(gate.lag(barDur*4), [shifted, beat]);
+	//SelectX.ar(gate.lag(barDur*4), [shifted, beat]
+	out = Pan2.ar(bird, 0.2) + beat;
 	//beat * (Ringz.ar(K2A.ar(trackb),22, mul:0.005) + Ringz.ar(K2A.ar(trackh), 550,mul:0.005) + Decay.kr(trackq, mul:0.15) + Decay2.ar(Impulse.ar(tempo/4),0.4,3,mul:0.7));
 	monitor.write(out);
 	out*0.7;
