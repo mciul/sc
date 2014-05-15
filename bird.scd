@@ -184,9 +184,12 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	Poll(zipDelayChange, zipDelay, "zipDelay");
 	// multiply by gate so when frequency overloads, we use
 	// the minimum (lowest pitch) rate
-	zipTrigger=SetResetFF.kr(trackphrase, zipDelayChange);
+	zipTrigger=SetResetFF.kr(trackphrase, TDelay.kr(zipDelayChange,barDur/8));
 	zipStretch = Latch.kr(max(0.25, Decay.kr(loudness[0], barDur, 0.1*gate).round(1/2)), zipTrigger);
-	zipSquash = Latch.kr(max(5/4, ((5/3)-loudness[1]).round(1/4)), zipTrigger);
+	// increas probability of 1/3 and 1 as zipSquash values? It's usually 1/2
+	zipSquash = Latch.kr(max(4/3, loudness[1].madd(-1.5, 1.5).round(1/2)), zipTrigger);
+	//Poll(trackphrase, zipTrigger, "zipTrigger");
+	//Poll(zipTrigger, zipSquash, "zipSquash");
 	// how close are sampleDur and zipDelay within an integer # of octaves?
 	// (calculating zipDirect this way might be a mistake if both
 	// are successfully set to multiples of barDur)
@@ -195,7 +198,7 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	// probably not what we want.
 	// strong when two channels are the same
 	// zipDirect is strong when stereo spread is decreasing
-	zipDirect = Latch.kr(~ctrlDist.(stereoSpread.lag(barDur/2)-stereoSpread.lag(barDur*2),10000,0.01,1,0),trackh).lag(1.1-gate);
+	zipDirect = Latch.kr(~ctrlDist.(loudness.lag(barDur/4)-loudness.lag(barDur),10000,0.01,1,0),trackh).lag(1.1-gate);
 	// zipcross is strong when two channels are different
 	zipCross = Latch.kr(~ctrlDist.(stereoSpread.lag(barDur*4), 8, 0.01, gate/2, max(1-zipDirect,1/2)),trackphrase).lag(barDur/4);
 	//Poll(TDelay.kr(trackb,0.1), zipDirect, "zipDirect");
@@ -207,11 +210,12 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 		zipDirect,  // directRegen
 		zipCross // crossRegen
 	);
-	//shifted=FreqShift.ar(beat, -0.75*[freq1, freq2]);
-	shifted=~vocoder.(beat, ~halfShift, Array.geom(21, 20, 1.414));
+	shifted=FreqShift.ar(beat, -0.75*[freq1, freq2]);
+	//shifted=~vocoder.(beat, ~halfShift, Array.geom(21, 20, 1.414));
 	out = Pan2.ar(bird, 0.2)+SelectX.ar(gate.lag(barDur*4), [shifted, beat]);
 	//beat * (Ringz.ar(K2A.ar(trackb),22, mul:0.005) + Ringz.ar(K2A.ar(trackh), 550,mul:0.005) + Decay.kr(trackq, mul:0.15) + Decay2.ar(Impulse.ar(tempo/4),0.4,3,mul:0.7));
 	monitor.write(out);
+	out*0.7;
 })
 
 Array.geom(21, 20, 1.414).round
