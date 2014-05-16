@@ -7,10 +7,10 @@ s.boot;
 
 b.free;
 b = Buffer.read(s, "/Users/mciul/Music/samples/Birdsong-Dunnock.aiff");
-b = Buffer.read(s, "/Users/mciul/Music/samples/upenn_birdsong_20140505.aiff");
 c = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_blue_jay.aiff");
-b = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_wood_thrush.aiff");
 d = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_american_crow.aiff");
+e = Buffer.read(s, "/Users/mciul/Music/samples/upenn_birdsong_20140505.aiff");
+f = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_wood_thrush.aiff");
 
 w.free
 w = Buffer.alloc(s,1024,1);
@@ -171,7 +171,7 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	gate = gate * (1 - tracksample);
 	sampleDur = sampleDur * Latch.kr((0.2+loudness[1]-loudness[0]).sign, trackb);
 	//Poll(trackphrase, sampleDur, "sampleDur");
-	samplePitch = Latch.kr(freq2/880, hasFreq2 * trackq);
+	samplePitch = Latch.kr(freq2/1760, hasFreq2 * trackq);
 	// bird is in channel 0, so louder 0 means more bird
 	// let's make the bird play slower when it's louder
 	sampleTempo = 4.pow(((loudness[1]*20)-(loudness[0]*50)).distort);
@@ -185,8 +185,6 @@ play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
 	zipDelayChange = freqDownbeat + SetResetFF.kr(trackphrase, Changed.kr(tempo));
 	zipDelay = barDur * Latch.kr((freq1/freq2).cpsmidi.round.wrap(minBars,maxBars), zipDelayChange);
 	Poll(zipDelayChange, zipDelay, "zipDelay");
-	// multiply by gate so when frequency overloads, we use
-	// the minimum (lowest pitch) rate
 	zipTrigger=SetResetFF.kr(trackphrase, TDelay.kr(zipDelayChange,barDur/8));
 	zipStretch = Latch.kr(Decay.kr(loudness[0], barDur, 0.1*gate).round(1/2).clip(0.25, 0.5), zipTrigger);
 	zipSquash = Latch.kr(loudness[1].madd(-3, 2.5).round(1/2).clip(4/3, 2), zipTrigger);
@@ -247,3 +245,5 @@ play({
 })
 )
 
+
+play({var trig=Impulse.kr(1/10); var t=Sweep.kr(trig); Poll(Impulse.kr(1), t, "timer");})
