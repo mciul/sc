@@ -112,17 +112,13 @@ Instr(\stereoBeatZip, ~stereoBeatZip);
 };
 )
 
-play({var in=Blip.ar(MouseX.kr(160,600), MouseY.kr(1,200)); [~vocoder.(in, ~halfShift), in]})
-
-play({Instr(\stereoBeatZip).ar(w, SoundIn.ar())})
-
 (play{
 	var fft, trackb, trackh, trackq, tempo, barDur, trackphrase, tracksample;
 	var bird, beat;
 	var monitor, monitor_in, monitor_mono, shifted, out;
 	var mintempo;
 	var in = SoundIn.ar();
-	var buffer=d;
+	var buffer=b;
 	var freq1, hasFreq1, freq2, hasFreq2;
 	var loudness, stereoSpread;
 	var pulse, gate, sampleStart, sampleDur, samplePitch, sampleStartChange, sampleTempo;
