@@ -11,6 +11,7 @@ c = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_blue_jay.aiff");
 d = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_american_crow.aiff");
 e = Buffer.read(s, "/Users/mciul/Music/samples/upenn_birdsong_20140505.aiff");
 f = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_wood_thrush.aiff");
+g = Buffer.read(s, "/Users/mciul/Music/samples/backyard_20060801_1425.aiff");
 
 w.free
 w = Buffer.alloc(s,1024,1);
@@ -66,8 +67,8 @@ Instr(\sampleGrain,
 	upSlew = 1-min(1,stretchRate);
 	downSlew = max(1,squashRate)-1;
 	//Poll(Impulse.kr(0)+Changed.kr(squashRate), squashRate, "squashRate");
-	Poll(Changed.kr(upSlew), upSlew, "upSlew");
-	Poll(Impulse.kr(0)+Changed.kr(downSlew), downSlew, "downSlew");
+	//Poll(Changed.kr(upSlew), upSlew, "upSlew");
+	//Poll(Impulse.kr(0)+Changed.kr(downSlew), downSlew, "downSlew");
 	fbNode = FbNode(2, minDelay, 4);
 	limiterDelay = minDelay - ControlDur.ir;
 	feedback = LeakDC.ar(fbNode.delay(ControlDur.ir));
@@ -118,11 +119,11 @@ Instr(\stereoBeatZip, ~stereoBeatZip);
 	var monitor, monitor_in, monitor_mono, shifted, out;
 	var mintempo;
 	var in = SoundIn.ar();
-	var buffer=b;
+	var buffer=g;
 	var freq1, hasFreq1, freq2, hasFreq2;
 	var loudness, stereoSpread;
 	var pulse, gate, sampleStart, sampleDur, samplePitch, sampleStartChange, sampleTempo;
-	var zipTrigger, zipDelay, zipStretch, zipSquash, zipDirect, zipCross, maxBars, minBars, zipDelayChange;
+	var zipTrigger, zipDelay, zipStretch, zipSquash, normalDirect, overloadDirect, zipDirect, zipCross, maxBars, minBars, zipDelayChange;
 	var freqDownbeat;
 	monitor = FbNode(2);
 	monitor_in = monitor.delay;
@@ -158,20 +159,20 @@ Instr(\stereoBeatZip, ~stereoBeatZip);
 	// to control pitch
 	gate = SetResetFF.kr(freq2.lag(1)<70, freq2>3800);
 	Poll.kr(1-gate, PulseCount.kr(1-gate), "frequency overload");
-	Poll.kr(gate, Timer.kr(1-gate), "frequency recovery");// Timer not doing what I thought it would
+	Poll.kr(gate, Sweep.kr(1-gate), "frequency recovery");
 	sampleStartChange = freqDownbeat+Trig1.kr(gate,0);
 	sampleStart = Latch.kr(freq1.cpsoct.mod(1), sampleStartChange);
 	Poll(sampleStartChange, sampleStart, "sampleStart");
-	sampleDur = Latch.kr(2.pow(loudness[0].madd(14,-8).round)*tempo*16, trackphrase);
+	sampleDur = Latch.kr(2.pow(loudness[0].madd(12,-4).round)*barDur*8, trackphrase);
 	tracksample = PulseDivider.kr(trackb, max(1,sampleDur*2/barDur));
 	gate = gate * (1 - tracksample);
 	sampleDur = sampleDur * Latch.kr((0.2+loudness[1]-loudness[0]).sign, trackb);
-	//Poll(trackphrase, sampleDur, "sampleDur");
-	samplePitch = Latch.kr(freq2/1760, hasFreq2 * trackq);
+	Poll(Changed.kr(sampleDur), sampleDur/barDur, "sampleDur in bars");
+	samplePitch = Latch.kr((min(1/16,freq2/1320).ratiomidi).madd(0.5).midiratio, hasFreq2 * trackq);
 	// bird is in channel 0, so louder 0 means more bird
 	// let's make the bird play slower when it's louder
 	sampleTempo = 4.pow(((loudness[1]*20)-(loudness[0]*50)).distort);
-	//Poll(trackphrase, sampleTempo, "sampleTempo");
+	Poll(Changed.kr(sampleTempo), sampleTempo, "sampleTempo");
 	//Poll(gate, PulseCount.kr(gate), "gate");
 	//Poll(hasFreq1, samplePitch, "samplePitch");
 	bird = ~sampleGrain.value(buffer, gate, sampleStart, sampleDur, samplePitch, sampleTempo);
@@ -180,14 +181,16 @@ Instr(\stereoBeatZip, ~stereoBeatZip);
 	minBars = (0.25/barDur).ceil;
 	zipDelayChange = freqDownbeat + SetResetFF.kr(trackphrase, Changed.kr(tempo));
 	zipDelay = barDur * Latch.kr((freq1/freq2).cpsmidi.round.wrap(minBars,maxBars), zipDelayChange);
-	Poll(zipDelayChange, zipDelay, "zipDelay");
+	//Poll(zipDelayChange, zipDelay, "zipDelay");
 	zipTrigger=SetResetFF.kr(trackphrase, TDelay.kr(zipDelayChange,barDur/8));
 	zipStretch = Latch.kr(Decay.kr(loudness[0], barDur, 0.1*gate).round(1/2).clip(0.25, 0.5), zipTrigger);
 	zipSquash = Latch.kr(loudness[1].madd(-3, 2.5).round(1/2).clip(4/3, 2), zipTrigger);
 	//Poll(trackphrase, zipTrigger, "zipTrigger");
 	//Poll(zipTrigger, zipSquash, "zipSquash");
 	// zipDirect is stereo, open gate during attacks
-	zipDirect = Latch.kr(~ctrlDist.(loudness.lag(barDur/4)-loudness.lag(barDur),10000,0.01,1,0),trackh).lag(1.1-gate);
+	normalDirect = Latch.kr(~ctrlDist.(loudness.lag(barDur/4)-loudness.lag(barDur),10000,0.01,1,0), trackh);
+	overloadDirect = Latch.kr(~ctrlDist.([hasFreq1, hasFreq2]>0, 1000,0.1), trackq);
+	zipDirect = Select.kr(gate, [overloadDirect, normalDirect]).lag(0.1);
 	// zipcross is strong when two channels are different
 	zipCross = Latch.kr(~ctrlDist.(stereoSpread.lag(barDur*4), 8, 0.01, gate/2, max(1-zipDirect,1/2)),trackphrase).lag(barDur/4);
 	//Poll(TDelay.kr(trackb,0.1), zipDirect, "zipDirect");
