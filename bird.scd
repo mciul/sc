@@ -120,7 +120,7 @@ Instr(\stereoBeatZip, ~stereoBeatZip);
 	var bird, beat;
 	var monitor, monitor_in, monitor_mono, shifted, out;
 	var mintempo;
-	var in = SoundIn.ar() * 0.001;
+	var in = SoundIn.ar() * 0.2;
 	var buffer=h;
 	var freq1, hasFreq1, freq2, hasFreq2;
 	var loudness, stereoSpread;
