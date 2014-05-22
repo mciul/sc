@@ -12,6 +12,8 @@ d = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_american_crow.aiff");
 e = Buffer.read(s, "/Users/mciul/Music/samples/upenn_birdsong_20140505.aiff");
 f = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_wood_thrush.aiff");
 g = Buffer.read(s, "/Users/mciul/Music/samples/backyard_20060801_1425.aiff");
+h = Buffer.read(s, "/Users/mciul/Music/samples/hotel_girls.aiff");
+
 
 w.free
 w = Buffer.alloc(s,1024,1);
@@ -118,8 +120,8 @@ Instr(\stereoBeatZip, ~stereoBeatZip);
 	var bird, beat;
 	var monitor, monitor_in, monitor_mono, shifted, out;
 	var mintempo;
-	var in = SoundIn.ar();
-	var buffer=g;
+	var in = SoundIn.ar() * 0.001;
+	var buffer=h;
 	var freq1, hasFreq1, freq2, hasFreq2;
 	var loudness, stereoSpread;
 	var pulse, gate, sampleStart, sampleDur, samplePitch, sampleStartChange, sampleTempo;
