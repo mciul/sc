@@ -13,6 +13,7 @@ e = Buffer.read(s, "/Users/mciul/Music/samples/upenn_birdsong_20140505.aiff");
 f = Buffer.read(s, "/Users/mciul/Music/samples/langelliott_wood_thrush.aiff");
 g = Buffer.read(s, "/Users/mciul/Music/samples/backyard_20060801_1425.aiff");
 h = Buffer.read(s, "/Users/mciul/Music/samples/hotel_girls.aiff");
+~herb = Buffer.read(s, "/Users/mciul/Music/samples/han_wang_apology.aiff");
 
 
 w.free
@@ -121,7 +122,7 @@ Instr(\stereoBeatZip, ~stereoBeatZip);
 	var monitor, monitor_in, monitor_mono, shifted, out;
 	var mintempo;
 	var in = SoundIn.ar() * 0.2;
-	var buffer=h;
+	var buffer=~herb;
 	var freq1, hasFreq1, freq2, hasFreq2;
 	var loudness, stereoSpread;
 	var pulse, gate, sampleStart, sampleDur, samplePitch, sampleStartChange, sampleTempo;
