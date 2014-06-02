@@ -117,7 +117,7 @@ Instr(\stereoBeatZip, ~stereoBeatZip);
 )
 
 (play{
-	var fft, trackb, trackh, trackq, tempo, barDur, trackphrase, tracksample;
+	var fft, trackb, trackh, trackq, tempo, barDur, trackphrase;
 	var bird, beat;
 	var monitor, monitor_in, monitor_mono, shifted, out;
 	var mintempo;
@@ -127,7 +127,7 @@ Instr(\stereoBeatZip, ~stereoBeatZip);
 	var loudness, stereoSpread;
 	var pulse, gate, sampleStart, sampleDur, samplePitch, sampleStartChange, sampleTempo;
 	var zipTrigger, zipDelay, zipStretch, zipSquash, normalDirect, overloadDirect, zipDirect, zipCross, maxBars, minBars, zipDelayChange;
-	var freqDownbeat;
+	var freqDownbeat, sampleDurChange;
 	monitor = FbNode(2);
 	monitor_in = monitor.delay;
 	fft = FFT(w, in+monitor_in.sum);
@@ -166,15 +166,19 @@ Instr(\stereoBeatZip, ~stereoBeatZip);
 	sampleStartChange = freqDownbeat+Trig1.kr(gate,0);
 	sampleStart = Latch.kr(freq1.cpsoct.mod(1), sampleStartChange);
 	Poll(sampleStartChange, sampleStart, "sampleStart");
-	sampleDur = Latch.kr(2.pow(loudness[0].madd(12,-4).round)*barDur*8, trackphrase);
-	tracksample = PulseDivider.kr(trackb, max(1,sampleDur*2/barDur));
-	gate = gate * (1 - tracksample);
+	// sample dur only updates on the phrase downbeat
+	// after the tempo changes or the sample start changes
+	sampleDurChange = SetResetFF.kr(trackphrase, Changed.kr(barDur) + sampleStartChange);
+	// sampleDur is an even number of bars
+	// it grows by powers of 2 if the sample doesn't change
+	// until it loops back
+	sampleDur = Latch.kr(2.pow(Stepper.kr(trackb, sampleStartChange,-1,6))*barDur, sampleDurChange);
 	sampleDur = sampleDur * Latch.kr((0.2+loudness[1]-loudness[0]).sign, trackb);
 	Poll(Changed.kr(sampleDur), sampleDur/barDur, "sampleDur in bars");
-	samplePitch = Latch.kr((min(1/16,freq2/1320).ratiomidi).madd(0.5).midiratio, hasFreq2 * trackq);
+	samplePitch = Latch.kr((min(1/16,freq2/440).ratiomidi).madd(0.5).midiratio, hasFreq2 * trackq);
 	// bird is in channel 0, so louder 0 means more bird
 	// let's make the bird play slower when it's louder
-	sampleTempo = 4.pow(((loudness[1]*20)-(loudness[0]*50)).distort);
+	sampleTempo = 4.pow(((loudness[1]*50)-(loudness[0]*80)).distort);
 	Poll(Changed.kr(sampleTempo), sampleTempo, "sampleTempo");
 	//Poll(gate, PulseCount.kr(gate), "gate");
 	//Poll(hasFreq1, samplePitch, "samplePitch");
@@ -211,7 +215,7 @@ Instr(\stereoBeatZip, ~stereoBeatZip);
 	//shifted=~vocoder.(beat, ~halfShift, Array.geom(21, 20, 1.414));
 	//SelectX.ar(gate.lag(barDur*4), [shifted, beat]
 	out = Pan2.ar(bird, 0.2) + beat;
-	//beat * (Ringz.ar(K2A.ar(trackb),22, mul:0.005) + Ringz.ar(K2A.ar(trackh), 550,mul:0.005) + Decay.kr(trackq, mul:0.15) + Decay2.ar(Impulse.ar(tempo/4),0.4,3,mul:0.7));
+	//out = [bird, Ringz.ar(K2A.ar(trackb),440, mul:0.005)];
 	monitor.write(out);
 	out*0.7;
 })
