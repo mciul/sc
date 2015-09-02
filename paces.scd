@@ -26,7 +26,7 @@ SynthDef(\yardBell, { |out, freq=440, amp=0.1, pan=0, gate = 1|
 
 ~steps = Pbind(
 	\instrument, \default,
-	\midinote, Pseq([44, 36, 43, 36, 41, 36, 40, 36, 39, 36, 41, 43], inf),
+	\midinote, Pseq([44, 36, 43, 36, 41, 36, 40, 36, 37, 36, 41, 43], 10),
 	\dur, beat,
 	\amp, 0.5
 );
@@ -40,13 +40,13 @@ SynthDef(\yardBell, { |out, freq=440, amp=0.1, pan=0, gate = 1|
 		67, 70, 67, 70, 67,
 		68, 63, 68, 63, 68,
 		70, 65, 68, 65, 68
-	], inf),
+	], 20),
 	\dur, beat * 2 / 5,
 	\amp, Pseq([
 		0.15, 0.02, 0.02, 0.11, 0.02,
 		0.12, 0.11, 0.02, 0.02, 0.11,
 		0.12, 0.02, 0.11, 0.02, 0.02
-	], inf)
+	], 20)
 );
 
 ~yards = Pbind(
@@ -56,22 +56,25 @@ SynthDef(\yardBell, { |out, freq=440, amp=0.1, pan=0, gate = 1|
 		55, 56, 58, 60, 61,
 		58, 60, 61, 65, 72,
 		73, 77, 79, 85, 84
-	], inf),
+	], 5),
 	\dur, beat * 6 / 5,
 	\amp, Pseq([
 		0.25, 0.1, 0.15, 0.15, 0.15,
 		0.2, 0.1, 0.15, 0.15, 0.15
-	] * 0.7, inf),
+	] * 0.7, 10),
 );
 )
 
 p = Ppar([~steps, ~yards, ~feet]).play;
 p.stop;
+s.prepareForRecord
+s.record
+s.stopRecording
 
 F      41, 53, 65, 77
 G      43, 55, 67, 79
 Ab     44, 56, 68, 80
 Bb     46, 58, 70, 82
 C  36, 48, 60, 72, 84
-Db     49, 61, 73, 85
+Db 37, 49, 61, 73, 85
 Eb 39, 51, 63, 75, 87

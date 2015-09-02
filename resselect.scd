@@ -1,8 +1,10 @@
 (
+~arraymax = { |ugenArray| ugenArray.inject(DC.kr(-1), {|runningMax, in| in.max(runningMax)})}
+
 x = {
     // A collection of different tones:
     var son = SinOsc.ar((100, 100.3 .. 110));
-    var val = ArrayMax.ar(son).at(0);
+    var val = ~arraymax.value(son).at(0);
     val = LeakDC.ar(val); // the operation tends to induce DC offset
     Pan2.ar(val)
 }.scope
