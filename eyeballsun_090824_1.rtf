@@ -1,0 +1,101 @@
+{\rtf1\ansi\ansicpg1252\cocoartf949\cocoasubrtf540
+{\fonttbl\f0\fnil\fcharset0 Monaco;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue191;\red0\green0\blue0;\red0\green115\blue0;
+\red96\green96\blue96;\red191\green0\blue0;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs18 \cf2 Server\cf3 .default = s = \cf2 Server\cf3 .internal.boot; s.recSampleFormat = \cf4 'int16'\cf3 ;\
+b.free;\
+b = \cf2 Buffer\cf3 .read( s, \cf5 "/your/sample/file/here.aiff"\cf3  );\
+\
+\cf6 // look up some prime numbers for the reverb\cf3 \
+(200..240).collect( \cf2 _\cf3 .nthPrime );\
+(\
+\cf2 var\cf3  next = 0.05 * 44100;\
+next.asInteger.nextPrime;\
+( \{ \cf2 var\cf3  p = next.asInteger.nextPrime; next = p * 1.2; p \} ).dup( 3 );\
+)\
+\cf6 /*\
+0.03: [ 1327, 1597, 1931 ]\
+0.05: [ 2207, 2657, 3191 ]\
+0.07: [ 3089, 3709, 4451 ]\
+*/\cf3 \
+\
+\cf6 // This is the actual patch.\
+// MouseX controls delay repeats - move right for more\
+// MouseY controls sample gate level - move down to increase\cf3 \
+(\
+\{\
+\cf2 var\cf3  bpm = 112.2345, sixteenth = 60 / 4 / bpm, comb = (16+6) * sixteenth,\
+	delays = [ 10, 32+3, 16+1, 13 ] * sixteenth,\
+	downbeat, rate, in, amp, attack, chain, outs;\
+\
+\cf6 // Trigger a gate to let the sample through on downbeats\cf3 \
+downbeat = \cf2 Impulse\cf3 .ar( bpm / 60 / 4, 0 );\
+rate = 1;\
+\
+\cf6 // loop the sample silently in the background, out of sync with the downbeat\cf3 \
+in = \cf2 PlayBuf\cf3 .ar(\
+	b.numChannels,\
+	b.bufnum,\
+	rate * \cf2 BufRateScale\cf3 .kr( b.bufnum ),\
+	startPos: 0.911,\
+	loop: 1\
+);\
+\
+\cf6 // Gate the sample, and make sure the envelope decays no matter what\cf3 \
+\cf6 // dynamic the sample has at the moment.\cf3 \
+\cf6 //\cf3 \
+\cf6 // Quieter sounds will have a slower decay.\cf3 \
+\cf6 //\cf3 \
+\cf6 // MouseY controls downbeat volume level.\cf3 \
+amp = \cf2 Amplitude\cf3 .ar( in ).max( 0.001 );\
+attack = ( amp / \cf2 Latch\cf3 .ar( amp, downbeat ) ).max( 0.4 );\
+in = in * ( \cf2 Decay2\cf3 .ar( downbeat, 0.002, 0.3 / attack, \cf2 MouseY\cf3 .kr( 0, 1 ) ) );\
+\
+\cf6 // add some reverb\cf3 \
+[ 2207, 2657, 3191 ].do( \{ \cf2 |samples, i|\cf3 \
+	\cf2 var\cf3  time = samples / \cf2 SampleRate\cf3 .ir;\
+	\cf2 var\cf3  decay = 0.8, wet = 0.1;\
+	in = \cf2 CombN\cf3 .ar( in, time, time, decay / 3.sqrt, mul: wet.neg, add: in );\
+\} );\
+\
+\cf6 // The initial delay on the downbeat.\cf3 \
+\cf6 // I think subtracting the control rate from the delay time was a mistake;\cf3 \
+\cf6 // there's no feedback channel here.\cf3 \
+\cf6 //\cf3 \
+\cf6 // MouseX controls the decay time.\cf3 \
+comb = comb - \cf2 ControlRate\cf3 .ir.reciprocal;\
+chain = \cf2 CombN\cf3 .ar( in, comb, comb, comb * \cf2 MouseX\cf3 .kr( 0, 18 ) );\
+\
+\cf6 // Set up an array of outputs, starting with this delay\cf3 \
+outs = [ chain ];\
+\
+\cf6 // Add four more delays to fill out different beats\
+//\
+// These delays have just a few repeats, also controlled by MouseX\cf3 \
+outs = outs ++ delays.collect( \{\cf2 |time, i|\cf3 \
+	chain.postln;\
+	chain = \cf2 CombN\cf3 .ar( chain, time, time, time * \cf2 MouseX\cf3 .kr(1, 3), 1.5);\
+	\cf6 // Filter each delay to give it a different "drum" sound\cf3 \
+	\cf2 Resonz\cf3 .ar(\
+		chain,\
+		[57, 6487, 1737, 8919].at(i),\
+		[ 0.4, 0.1, 0.2, 0.1 ].at(i)\
+	);\
+\});\
+\
+\cf6 // Cheap-ass stereo effect: pan all the delays back and forth across the field.\
+//\
+// use gentle distortion as a limiter\cf3 \
+\cf2 Mix\cf3 ( \cf2 Pan2\cf3 .ar(\
+	[in] ++ outs,\
+	\cf2 FSinOsc\cf3 .ar(\
+		[ 0, 0.8132, 0.6215, 2.64, 0.0234, 3 ],\
+		[ 0, 0.5, 1, 1.5, 0, 0.5 ] * pi,\
+		[ 0, 0.3, 0.3, 0.8, 0.5, 0.8 ]\
+	),\
+	[ 1, 1.5, 3, 4, 1, 8 ]\
+) ).softclip.postln;\
+\}.play(s);\
+)}

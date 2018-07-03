@@ -6,9 +6,9 @@ s.recSampleFormat = 'int16';
 s.boot;
 s.quit;
 b.free;
-b = Buffer.read( s, "/Users/mciul/Google Drive/samples/backyard 20060801 1425.aiff" );
-b = Buffer.read( s, "/Users/mciul/Google Drive/samples/mono/silvermountain_theme_mono.aiff" );
-b = Buffer.read( s, "/Users/mciul/Google Drive/samples/hotel_solo.aiff" );
+b = Buffer.read( s, "/Users/mike/Google Drive/samples/backyard 20060801 1425.aiff" );
+b = Buffer.read( s, "/Users/mike/Google Drive/samples/mono/silvermountain_theme_mono.aiff" );
+b = Buffer.read( s, "/Users/mike/Google Drive/samples/hotel_solo.aiff" );
 
 b.numChannels
 s.prepareForRecord;

@@ -1,0 +1,160 @@
+{\rtf1\ansi\ansicpg1252\cocoartf949\cocoasubrtf540
+{\fonttbl\f0\fnil\fcharset0 Monaco;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue191;\red191\green0\blue0;\red0\green115\blue0;
+\red96\green96\blue96;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs18 \cf0 s = \cf2 Server\cf0 .local;\
+s.options.memSize=24576;\
+\cf2 Server\cf0 .default = s.boot;\
+(\
+\cf3 // Define instruments.\cf0 \
+\cf3 // kick drum\cf0 \
+\cf2 Instr\cf0 (\cf4 \\kick\cf0 ,\
+	\{\
+		\cf2 arg\cf0  trigger, stickAttack=0.0001, stickDecay=0.001,startFreq = 50, endFreq = 20, decayTime = 1.2;\
+		\cf2 var\cf0  stick = \cf2 Decay2\cf0 .ar(trigger, stickAttack, stickDecay);\
+		\cf2 var\cf0  boomFreq = \cf2 Decay\cf0 .ar(stick, decayTime, (startFreq - endFreq), endFreq);\
+		\cf2 var\cf0  boom = \cf2 Ringz\cf0 .ar(stick, boomFreq, decayTime, 0.7);\
+		\cf2 Pan2\cf0 .ar(boom, 0);\
+	\},\
+	#[\
+		[0.00001,0.001,\cf4 \\exp\cf0 ,0.00001],	\cf3 // stickAttack\cf0 \
+		[0.0001,0.01,\cf4 \\exp\cf0 ,0.0001],		\cf3 // stickDecay,\cf0 \
+		\cf4 \\freq\cf0 ,						\cf3 // startFreq,\cf0 \
+		\cf4 \\freq\cf0 ,						\cf3 // endFreq,\cf0 \
+		[0.1,3,\cf4 \\exp\cf0 ,0.01]				\cf3 // decayTime\cf0 \
+	]\
+);\
+\
+\cf3 // snare drum\cf0 \
+\cf2 Instr\cf0 (\cf4 \\PMsnare\cf0 ,\
+	\{\
+		\cf2 arg\cf0  trigger, stickDecay=0.01, topTension=0.032, bottomTension=0.022, topLoss=0.999, bottomLoss=0.999,\
+			snareRattle=92, snareDecay=0.28,\
+			snareFreq1=685, snareFreq2=2909, snareFreq3=4011,\
+			snareRQ1=0.105, snareRQ2=0.69, snareRQ3=0.47,\
+			snareMix1=0.026, snareMix2=0.033, snareMix3=0.091,\
+			wet=0.28,roomsize=0.01,damping=0.0005,\
+			topMix=0.31,bottomMix=0.034;\
+		\cf2 var\cf0  stick=\cf2 Decay\cf0 .ar(trigger, stickDecay);\
+		\cf2 var\cf0  top=\cf2 MembraneCircle\cf0 .ar(stick,topTension, topLoss);\
+		\cf2 var\cf0  bottom=\cf2 MembraneCircle\cf0 .ar(top, bottomTension,bottomLoss);\
+		\cf2 var\cf0  rattles=\cf2 Ringz\cf0 .ar(top-bottom, [0,2.4,4.8,7.2,9.6].midiratio * snareRattle, snareDecay);\
+		\cf2 var\cf0  snare=\cf2 Mix\cf0 .new(\cf2 ToggleFF\cf0 .ar(rattles) * rattles);\
+		snare = \cf2 Mix\cf0 .new(\cf2 BPF\cf0 .ar(snare, [snareFreq1, snareFreq2, snareFreq3], [snareRQ1, snareRQ2, snareRQ3], [snareMix1, snareMix2, snareMix3]));\
+		snare = \cf2 FreeVerb\cf0 .ar(snare, wet, roomsize, damping);\
+		[top * topMix + snare, bottom * bottomMix + snare];\
+	\},\
+	#[\
+		\cf4 \\nil\cf0 , 						\cf3 // trigger\cf0 \
+		[0.001,0.5,\cf4 \\exp\cf0 ,0.001],			\cf3 // stickDecay\cf0 \
+		[0.01,0.1,\cf4 \\exp\cf0 ,0.001],			\cf3 // topTension\cf0 \
+		[0.01,0.1,\cf4 \\exp\cf0 ,0.001],			\cf3 // bottomTension\cf0 \
+		[0.999,0.999999,\cf4 \\exp\cf0 ,0.000001],	\cf3 // topLoss\cf0 \
+		[0.999,0.999999,\cf4 \\exp\cf0 ,0.000001],	\cf3 // bottomLoss\cf0 \
+		\cf4 \\freq\cf0 ,			\cf3 // snareRattle\cf0 \
+		[0.1,3,\cf4 \\exp\cf0 ,0.01],						\cf3 // snareDecay\cf0 \
+		\cf4 \\freq\cf0 ,						\cf3 // snareFreq1\cf0 \
+		\cf4 \\freq\cf0 ,						\cf3 // snareFreq2\cf0 \
+		\cf4 \\freq\cf0 ,						\cf3 // snareFreq3\cf0 \
+		[0.01,1,\cf4 \\exp\cf0 ,0.0001],		\cf3 // snareRQ1\cf0 \
+		[0.01,1,\cf4 \\exp\cf0 ,0.0001],		\cf3 // snareRQ2\cf0 \
+		[0.01,1,\cf4 \\exp\cf0 ,0.0001],		\cf3 // snareRQ3	\cf0 \
+		\cf4 \\amp\cf0 ,							\cf3 // snareMix1\cf0 \
+		\cf4 \\amp\cf0 ,						\cf3 // snareMix2\cf0 \
+		\cf4 \\amp\cf0 ,							\cf3 // snareMix3\cf0 \
+		\cf4 \\unipolar\cf0 ,					\cf3 // wet\cf0 \
+		\cf4 \\unipolar\cf0 ,					\cf3 // room size\cf0 \
+		\cf4 \\amp\cf0 ,						\cf3 // damping\cf0 \
+		\cf4 \\amp\cf0 ,						\cf3 // topMix\cf0 \
+		\cf4 \\amp\cf0 ,						\cf3 // bottomMix\cf0 \
+	]);\
+)\
+3.5/3*10000\
+[1,1.25,1.75,2,1,2,3,2,1].size\
+[0.5,1,2,2.5,3,2,1].size\
+(\
+		\cf2 var\cf0  fastFeedback=0.1;\
+		\cf2 var\cf0  slowFeedback=1;\
+		\cf2 var\cf0  bpm=130;	\
+		\cf2 var\cf0  measure = 4 * 60 / bpm;\
+		\cf2 var\cf0  delayTime=[0.5,1,2,3] * measure;\
+		\cf2 var\cf0  maxDelayMeasures=3;\
+		\cf2 var\cf0  minDelayMeasures=0.5;\
+		\cf2 var\cf0  glitchBoost = (([0,0]).sum * 0.5).postln;\
+		\cf2 var\cf0  feedbackFactor = ((maxDelayMeasures - (delayTime.rotate / measure))/(maxDelayMeasures-minDelayMeasures)).postln;\
+		\cf2 var\cf0  delayFeedback = feedbackFactor * (glitchBoost+slowFeedback-fastFeedback) + fastFeedback;\
+		delayFeedback.postln\
+)\
+\
+[-1, 0, 0.4, 1].minItem\
+\cf2 inf\cf0 .neg\
+-\cf2 inf\cf0 \
+[ -1, 2, 0.5, 0 ].arrayMin\
+\
+(\
+\
+		\cf2 var\cf0  rateSeqs = [\
+			[1,1,0.5,0.5] ++ [0.5,0.5,0.5,0.5] ++ [0.5,0.5,0.5,0.5] ++ [1,1,1,1] ++ [1,2,1,2] ++ [1,2,1,1] ++ [0,0,0,0] ++ [1,2,0.5,0.5] ++ [0.5,0.5,0.5,0.5] ++ [1,2,1,2] ++ [1/3,1/3,1/3,1/3] ++ [1,1,-1/3,1] ++ [1,2,1,2] ++ [2,2,2,2] ++ [2,2,2,2],\
+			\
+			(2!4) ++ (1!4) ++ (0!4) ++ (2!2) ++ (1!12) ++ (0.5!12) ++ (0.5!8) ++ (1!2) ++ (2!8),\
+			\
+			[1,0.5,0.5,0.5] ++ [1,1,0.5,1] ++ [0,0,0,2] ++ [2,2,2,2]\
+		];\
+		\cf2 var\cf0  minTimes = [3,4,4];\
+				\
+	rateSeqs.collect(\{ \cf2 |seq, i|\cf0 \
+		\cf5 "rateSeq "\cf0 .post;\
+		i.post;\
+		\cf5 " size: "\cf0 .post;\
+		seq.size.post;\
+		\cf5 " sum="\cf0 .post;\
+		seq.sum.postln;\
+		\cf2 Instr\cf0 .ar(\cf4 \\timeDseq\cf0 , [seq, minTimes[i]]);\
+	\});\
+)\
+\
+\cf3 // Tape-delay style:\cf0 \
+(\
+	\cf2 var\cf0  bpm = 130;	\
+	\cf2 var\cf0  measure = 4 * 60 / bpm;\
+	\
+	b.free;\
+	c.free;\
+	b = \cf2 Buffer\cf0 .alloc(s, 44100 * measure * 2, 1 );\
+	c = \cf2 Buffer\cf0 .alloc(s, 44100 * measure * 2, 1 );\
+	\
+	\cf2 Instr\cf0 ( \cf4 \\tapeDelayZipRhythm\cf0 ,\
+	\{\
+		\cf2 arg\cf0  kickGain=1, snareGain=0.35, feedback=0.999, reverse=0.1;\
+		\cf2 var\cf0  beat=\cf2 Impulse\cf0 .ar(4/measure);\
+		\cf2 var\cf0  downbeat=\cf2 PulseDivider\cf0 .ar(beat, 4);\
+		\cf2 var\cf0  snareTrigger = \cf2 Impulse\cf0 .ar(1/measure/2, 1/2);\
+		\cf2 var\cf0  kickTrigger = \cf2 Impulse\cf0 .ar(1/measure);\
+		\cf2 var\cf0  snare = \cf2 Instr\cf0 .ar(\cf4 \\PMsnare\cf0 , [ snareTrigger, 0.01, 0.032, 0.022, 0.999, 0.999, 126.8, 0.17, 685.0, 2909.0, 4011.0, 0.105, 0.69, 0.47, 0.0135, 0.0228, 0.0265, 0.313, 0.0, 0.760, 0.0, 0.0]) * snareGain;\
+		\cf2 var\cf0  kick = \cf2 Instr\cf0 .ar(\cf4 \\kick\cf0 , [ kickTrigger, 7e-05, 0.0015, 29.88, 20.0, 0.43]) * kickGain;\
+		\cf2 var\cf0  in = snare + kick;\
+		\cf3 // var pitchSeq = ( [ 0, 0, 5, 0, 3, 2, 0 ] + 36 ).midicps;\cf0 \
+		\cf3 // var in = Ringz.ar( downbeat, Demand.ar(beat, 0, Dseq( pitchSeq, inf )), 0.5 );\cf0 \
+		\cf2 var\cf0  bRateSeq= ([1,2,1,1] ++ [1,0.5,0.5,0.5] ++ [0.5,2,2,2] ++ [1/3,1,-1/3,1] ++ [1,1,1,1]);		\cf2 var\cf0  cRateSeq= (2!1) ++ (1!3) ++ (1!4) ++ (0.5!6);\
+		\cf2 var\cf0  rate = [bRateSeq, cRateSeq].collect(\{ \cf2 |seq|\cf0  \cf2 Demand\cf0 .ar(beat, 0, \cf2 Dseq\cf0 ( seq/2, \cf2 inf\cf0  ) )\} ); \
+		\cf3 //var rate=(\{2**(TIRand.ar(0,2,downbeat)-1) * LFNoise0.ar(1/measure,add:1-(reverse*2)).sign\}!2).postln;\cf0 \
+		\
+		\cf2 var\cf0  phase = [b,c].collect(\{ \cf2 |buf, i|\cf0  \cf2 Phasor\cf0 .ar(0, \cf2 BufRateScale\cf0 .kr(buf.bufnum) * rate[i], 0, \cf2 BufFrames\cf0 .kr(buf.bufnum))\});\
+		\
+		\cf2 var\cf0  out = [b,c].collect( \{ \cf2 |buf, i|\cf0  \cf2 LeakDC\cf0 .ar(\cf2 LPF\cf0 .ar(\cf2 BufRd\cf0 .ar(1, buf.bufnum, phase[i], interpolation:4), 5000)) \} );\
+		\
+		[b,c].collect( \{ \cf2 |buf, i|\cf0  \cf2 BufWr\cf0 .ar( in.sum + (feedback * out.rotate[i]), buf.bufnum, phase[i]) \} );\
+		\
+		in + out;\
+	\},\
+	#[\
+		\cf4 \\amp\cf0 , \cf3 // kickGain\cf0 \
+		\\amp, // snareGain\
+		\\amp, // feedback\
+		\\amp, // reverse\
+	]\
+	).gui;\
+ )\
+}
