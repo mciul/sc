@@ -6,7 +6,8 @@ MIDIIn.connectAll;
 ~sampleBuf = Buffer.read(s, "/Users/mciul/Music/samples/long_tall_sally_garbled_cassette_scream_loop.aiff")
 ~sampleBuf = Buffer.read(s, "/Users/mciul/Music/samples/long_tall_sally_garbled_cassette_last_note.aiff");
 
-Env.adsr(0.01, 6, 0.01, 0.2, curve: \exponential).plot
+(39 + [ 0, 7, 4, 12, 10 ]).mod(12) + [ 36, 36, 48, 60, 60 ]
+
 (
 SynthDef(\strings, {
 	arg freq=440, bend=0, amp=0.3, gate=0, out=0, mod=0;
@@ -18,14 +19,30 @@ SynthDef(\strings, {
 	Out.ar(out, sig.sum);
 }).add;
 
+SynthDef(\pluck, {
+	arg freq=440, bend=0, amp=0.3, gate=0, out=0, mod=0;
+	var sig, in, decaytime, open, closed, coef, midi, sympathetic_midi;
+	in = WhiteNoise.ar(EnvGen.ar(Env.triangle(0.01)));
+	decaytime = gate.max(gate.lag(0.1)).linlin(0,1, 40 / freq, 1500 / freq);
+	open = (((60 - freq.cpsmidi) / 5).distort + 1) / 6;
+	closed = 0.6;
+	coef = gate.max(gate.lag(0.1)).linlin(0, 1, closed, open);
+	sig = Pluck.ar(in, gate, 0.1, (freq * bend.midiratio).reciprocal, decaytime, coef, amp);
+	midi = freq.cpsmidi.round.lag(0.05).poll(1);
+	sympathetic_midi = (midi + [ 0, 7, 4, 0, 0, 10 ]).mod(12) + [ 36, 36, 48, 48, 60, 60 ];
+	sig = Pluck.ar(sig * 0.7, gate, 36.midicps.reciprocal, sympathetic_midi.midicps.reciprocal, 6, 0.6 - (mod * 0.5), 1, 0).sum;
+	DetectSilence.ar(sig, doneAction: 2);
+	Out.ar(out, sig);
+}).add;
+
 SynthDef(\piano, {
 	arg freq=440, bend=0, amp=0.3, gate=0, out=0, mod=0;
 	var freqs, harms, sig, vibrato, depth, attack;
 	attack = 0.02 / (amp);
 	harms = (4000 / freq).ceil();
 	freqs = { ExpRand(freq * (-0.10).midiratio, freq * (0.10).midiratio) }!3;
-	sig = Blip.ar(freqs * bend.midiratio, harms, EnvGen.kr(Env.adsr(0.01, 6, 0.1, 0.2, curve: -4), gate, doneAction:2) * amp / 1);
-	sig = LPF.ar(sig, EnvGen.kr(Env.adsr(0.01, 4/freq.log2, 0.001, 0.1), gate, 3000 * amp + 1500, 400));
+	sig = Blip.ar(freqs * bend.midiratio, harms, EnvGen.kr(Env.adsr(0.01, 600/freq + 0.5, 0.01, 0.2, curve: -4), gate, doneAction:2) * amp / 1);
+	sig = LPF.ar(sig, EnvGen.kr(Env.adsr(0.01, 4/freq.log2, 0.001, 0.1), gate, 3000 * amp + 1500, 700));
 	Out.ar(out, sig.sum);
 }).add;
 
@@ -44,7 +61,8 @@ MIDIdef.noteOn(\noteOn, {
 	arg val, num, chan, src;
 	~notes[num].set(\gate, 0);
 	~notes[num] = Synth.new(
-		\piano,
+		num.postln;
+		\pluck,
 		[
 			\freq, num.midicps,
 			\bend, ~bend,
@@ -77,7 +95,6 @@ MIDIdef.cc(\modWheel, {
 		num == 1,
 		{
 			~mod = val.linlin(0,127,0,1);
-			~mod.postln;
 			~notes.do {
 				arg synth;
 				synth.set(\mod, ~mod);
