@@ -1,4 +1,13 @@
 s.quit;
+s.options.numOutputBusChannels_(2);
+//s.options.inDevice_("Built-in Microph");
+s.options.numInputBusChannels_(2);
+s.options.sampleRate_(44100);
+s.options.memSize_(2.pow(20));
+s.newBusAllocators;
+ServerBoot.removeAll;
+ServerTree.removeAll;
+ServerQuit.removeAll;
 s.boot;
 MIDIClient.init;
 MIDIIn.connectAll;
@@ -7,7 +16,7 @@ MIDIIn.connectAll;
 ~sampleBuf.free;
 ~sampleBuf = Buffer.read(s, "/Users/mciul/Music/samples/long_tall_sally_garbled_cassette_scream_loop.aiff")
 ~sampleBuf = Buffer.read(s, "/Users/mciul/Music/samples/long_tall_sally_garbled_cassette_last_note.aiff");
-
+2/7
 (
 SynthDef(\strings, {
 	arg freq=440, bend=0, amp=0.3, gate=0, out=0, mod=0;
@@ -19,11 +28,28 @@ SynthDef(\strings, {
 	Out.ar(out, sig.sum);
 }).add;
 
+SynthDef(\pmstrings, {
+	arg freq=440, bend=0, amp=0.3, gate=0, out=0, mod=0;
+	var bowspeed, bowpressure, bow, string, highboost;
+	var bent, level, sig;
+	bowpressure = amp * gate.lag(amp.linlin(0,1,0.2,0.01));
+	bowspeed = ((freq.cpsmidi - 37) * 0.5 + 37).midicps;
+	bowspeed = LFNoise1.ar(50, bowspeed * 0.3, bowspeed) * gate.lag(0.5 - bowpressure);
+	bent = freq * bend.midiratio;
+	level = amp * (freq.log2 * 6 * 0.5 - 37).dbamp;
+	bow = VarSaw.ar(bowspeed, 0, amp.linexp(0,1,0.4,0.005), bowpressure * 0.4);
+	bow = DynKlank.ar(`[[140, 400, freq], bowpressure * 0.4, [0.005, 0.005, 1/freq]], BrownNoise.ar(0.1));
+	string = Pluck.ar(bow, Impulse.ar(freq), 0.2, bent.reciprocal, 1.5, 0.5, level);
+	string = LPF.ar(HPF.ar(string, bent * 0.75), 10000);
+	DetectSilence.ar(string, doneAction: 2);
+	Out.ar(out, string);
+}).add;
+
 SynthDef(\pluck, {
 	arg freq=440, bend=0, amp=0.3, gate=0, out=0, mod=0;
 	var sig, in, decaytime, open, closed, coef, bent, midi;
 	var pitch_classes, wrap_points, octaves, midis, sympathetic_periods;
-	in = HPF.ar(PinkNoise.ar(), freq * 0.75, (freq.log2 * 6/4 -21).dbamp);
+	in = HPF.ar(BrownNoise.ar(), freq * 0.75, (freq.log2 * 6/4 -21).dbamp);
 	decaytime = gate.max(gate.lag(0.1)).linlin(0,1, 40 / freq, 1200 / freq);
 	open = (((60 - freq.cpsmidi) / 5).distort + 1) / 6;
 	closed = 0.6;
@@ -31,12 +57,13 @@ SynthDef(\pluck, {
 	bent = freq * bend.midiratio;
 	sig = Pluck.ar(in, gate, 0.1, bent.reciprocal, decaytime, coef, amp);
 	// sympathetic strings at octave, 5th, M3, octave, 7th - but wrapping at different points
+	midi = freq.cpsmidi.round.lag(0.01);
 	pitch_classes = [ 0, 7, 4, 12, 10 ];
 	wrap_points = [ 0, 0, 0, 6, 1 ];
 	octaves = [ 3, 3, 4, 4, 5 ];
 	midis = ( midi + pitch_classes - wrap_points ).mod(12) + wrap_points + (octaves * 12);
 	sympathetic_periods = (midis).midicps.reciprocal;
-	sig = sig + Pluck.ar(sig * 0.1, Impulse.ar(bent), sympathetic_periods, sympathetic_periods, 6, 0.6 - (mod * 0.5), 0.3).sum;
+	sig = sig + LeakDC.ar(Pluck.ar(sig * 0.1, Impulse.ar(bent), sympathetic_periods, sympathetic_periods, 6, 0.6 - (mod * 0.5), 0.3)).sum;
 	DetectSilence.ar(sig, doneAction: 2);
 	Out.ar(out, sig);
 }).add;
@@ -68,11 +95,11 @@ MIDIdef.noteOn(\noteOn, {
 	~notes[num].set(\gate, 0);
 	~notes[num] = Synth.new(
 		num.postln;
-		\pluck,
+		\pmstrings,
 		[
 			\freq, num.midicps,
 			\bend, ~bend,
-			\amp, val.linexp(0,127,0.1,0.7),
+			\amp, val.linexp(0,127,0.1,0.99),
 			\gate, 1,
 			\mod, ~mod,
 			\bufnum, ~sampleBuf;
