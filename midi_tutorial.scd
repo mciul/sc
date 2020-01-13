@@ -16,7 +16,7 @@ MIDIIn.connectAll;
 ~sampleBuf.free;
 ~sampleBuf = Buffer.read(s, "/Users/mciul/Music/samples/long_tall_sally_garbled_cassette_scream_loop.aiff")
 ~sampleBuf = Buffer.read(s, "/Users/mciul/Music/samples/long_tall_sally_garbled_cassette_last_note.aiff");
-2/7
+
 (
 SynthDef(\strings, {
 	arg freq=440, bend=0, amp=0.3, gate=0, out=0, mod=0;
@@ -33,10 +33,10 @@ SynthDef(\pmstrings, {
 	var bowspeed, bowpressure, bow, string, highboost;
 	var bent, level, sig;
 	bowpressure = amp * gate.lag(amp.linlin(0,1,0.2,0.01));
-	bowspeed = ((freq.cpsmidi - 37) * 0.5 + 37).midicps;
+	bowspeed = freq.cpsmidi.linexp(0,127,24,932);
 	bowspeed = LFNoise1.ar(50, bowspeed * 0.3, bowspeed) * gate.lag(0.5 - bowpressure);
 	bent = freq * bend.midiratio;
-	level = amp * (freq.log2 * 6 * 0.5 - 37).dbamp;
+	level = amp * freq.cpsmidi.linexp(0,127,0.04,1.5);
 	bow = VarSaw.ar(bowspeed, 0, amp.linexp(0,1,0.4,0.005), bowpressure * 0.4);
 	bow = DynKlank.ar(`[[140, 400, freq], bowpressure * 0.4, [0.005, 0.005, 1/freq]], BrownNoise.ar(0.1));
 	string = Pluck.ar(bow, Impulse.ar(freq), 0.2, bent.reciprocal, 1.5, 0.5, level);
@@ -49,7 +49,8 @@ SynthDef(\pluck, {
 	arg freq=440, bend=0, amp=0.3, gate=0, out=0, mod=0;
 	var sig, in, decaytime, open, closed, coef, bent, midi;
 	var pitch_classes, wrap_points, octaves, midis, sympathetic_periods;
-	in = HPF.ar(BrownNoise.ar(), freq * 0.75, (freq.log2 * 6/4 -21).dbamp);
+	midi = freq.cpsmidi.round.lag(0.01);
+	in = HPF.ar(BrownNoise.ar(), freq * 0.75, midi.linexp(0,127,0.15,0.95));
 	decaytime = gate.max(gate.lag(0.1)).linlin(0,1, 40 / freq, 1200 / freq);
 	open = (((60 - freq.cpsmidi) / 5).distort + 1) / 6;
 	closed = 0.6;
@@ -57,7 +58,6 @@ SynthDef(\pluck, {
 	bent = freq * bend.midiratio;
 	sig = Pluck.ar(in, gate, 0.1, bent.reciprocal, decaytime, coef, amp);
 	// sympathetic strings at octave, 5th, M3, octave, 7th - but wrapping at different points
-	midi = freq.cpsmidi.round.lag(0.01);
 	pitch_classes = [ 0, 7, 4, 12, 10 ];
 	wrap_points = [ 0, 0, 0, 6, 1 ];
 	octaves = [ 3, 3, 4, 4, 5 ];
@@ -95,7 +95,7 @@ MIDIdef.noteOn(\noteOn, {
 	~notes[num].set(\gate, 0);
 	~notes[num] = Synth.new(
 		num.postln;
-		\pmstrings,
+		\pluck,
 		[
 			\freq, num.midicps,
 			\bend, ~bend,
