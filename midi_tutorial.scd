@@ -1,12 +1,12 @@
+s.quit;
 s.boot;
 MIDIClient.init;
 MIDIIn.connectAll;
 
+
 ~sampleBuf.free;
 ~sampleBuf = Buffer.read(s, "/Users/mciul/Music/samples/long_tall_sally_garbled_cassette_scream_loop.aiff")
 ~sampleBuf = Buffer.read(s, "/Users/mciul/Music/samples/long_tall_sally_garbled_cassette_last_note.aiff");
-
-(39 + [ 0, 7, 4, 12, 10 ]).mod(12) + [ 36, 36, 48, 60, 60 ]
 
 (
 SynthDef(\strings, {
@@ -21,16 +21,22 @@ SynthDef(\strings, {
 
 SynthDef(\pluck, {
 	arg freq=440, bend=0, amp=0.3, gate=0, out=0, mod=0;
-	var sig, in, decaytime, open, closed, coef, midi, sympathetic_midi;
-	in = WhiteNoise.ar(EnvGen.ar(Env.triangle(0.01)));
-	decaytime = gate.max(gate.lag(0.1)).linlin(0,1, 40 / freq, 1500 / freq);
+	var sig, in, decaytime, open, closed, coef, bent, midi;
+	var pitch_classes, wrap_points, octaves, midis, sympathetic_periods;
+	in = HPF.ar(PinkNoise.ar(), freq * 0.75, (freq.log2 * 6/4 -21).dbamp);
+	decaytime = gate.max(gate.lag(0.1)).linlin(0,1, 40 / freq, 1200 / freq);
 	open = (((60 - freq.cpsmidi) / 5).distort + 1) / 6;
 	closed = 0.6;
 	coef = gate.max(gate.lag(0.1)).linlin(0, 1, closed, open);
-	sig = Pluck.ar(in, gate, 0.1, (freq * bend.midiratio).reciprocal, decaytime, coef, amp);
-	midi = freq.cpsmidi.round.lag(0.05).poll(1);
-	sympathetic_midi = (midi + [ 0, 7, 4, 0, 0, 10 ]).mod(12) + [ 36, 36, 48, 48, 60, 60 ];
-	sig = Pluck.ar(sig * 0.7, gate, 36.midicps.reciprocal, sympathetic_midi.midicps.reciprocal, 6, 0.6 - (mod * 0.5), 1, 0).sum;
+	bent = freq * bend.midiratio;
+	sig = Pluck.ar(in, gate, 0.1, bent.reciprocal, decaytime, coef, amp);
+	// sympathetic strings at octave, 5th, M3, octave, 7th - but wrapping at different points
+	pitch_classes = [ 0, 7, 4, 12, 10 ];
+	wrap_points = [ 0, 0, 0, 6, 1 ];
+	octaves = [ 3, 3, 4, 4, 5 ];
+	midis = ( midi + pitch_classes - wrap_points ).mod(12) + wrap_points + (octaves * 12);
+	sympathetic_periods = (midis).midicps.reciprocal;
+	sig = sig + Pluck.ar(sig * 0.1, Impulse.ar(bent), sympathetic_periods, sympathetic_periods, 6, 0.6 - (mod * 0.5), 0.3).sum;
 	DetectSilence.ar(sig, doneAction: 2);
 	Out.ar(out, sig);
 }).add;
@@ -66,7 +72,7 @@ MIDIdef.noteOn(\noteOn, {
 		[
 			\freq, num.midicps,
 			\bend, ~bend,
-			\amp, val.linexp(0,127,0.05,0.3),
+			\amp, val.linexp(0,127,0.1,0.7),
 			\gate, 1,
 			\mod, ~mod,
 			\bufnum, ~sampleBuf;
