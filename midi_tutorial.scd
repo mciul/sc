@@ -1,3 +1,4 @@
+(
 s.quit;
 s.options.numOutputBusChannels_(2);
 //s.options.inDevice_("Built-in Microph");
@@ -8,10 +9,12 @@ s.newBusAllocators;
 ServerBoot.removeAll;
 ServerTree.removeAll;
 ServerQuit.removeAll;
-s.boot;
-MIDIClient.init;
-MIDIIn.connectAll;
-
+s.waitForBoot({
+	s.sync;
+	MIDIClient.init;
+	MIDIIn.connectAll;
+});
+)
 
 ~sampleBuf.free;
 ~sampleBuf = Buffer.read(s, "/Users/mciul/Music/samples/long_tall_sally_garbled_cassette_scream_loop.aiff")
