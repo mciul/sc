@@ -74,7 +74,7 @@ SynthDef(\piano, {
 	attack = 0.02 / (amp);
 	harms = (4000 / freq).ceil();
 	freqs = { ExpRand(freq * (-0.10).midiratio, freq * (0.10).midiratio) }!3;
-	sig = Blip.ar(freqs * bend.midiratio, harms, EnvGen.kr(Env.adsr(0.01, 600/freq + 0.5, 0.01, 0.2, curve: -4), gate, doneAction:2) * amp / 1);
+	sig = Saw.ar(freqs * bend.midiratio, harms, EnvGen.kr(Env.adsr(0.01, 600/freq + 0.5, 0.01, 0.2, curve: -4), gate, doneAction:2) * amp / 1);
 	sig = LPF.ar(sig, EnvGen.kr(Env.adsr(0.01, 4/freq.log2, 0.001, 0.1), gate, 3000 * amp + 1500, 700));
 	Out.ar(out, sig.sum);
 }).add;
@@ -92,7 +92,7 @@ SynthDef(\sampleplay, {
 
 MIDIdef.noteOn(\noteOn, {
 	arg val, num, chan, src;
-	~notes[num].set(\gate, 0);
+	~notes[num].set(\piano, 0);
 	~notes[num] = Synth.new(
 		num.postln;
 		\pluck,
