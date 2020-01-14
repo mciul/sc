@@ -101,10 +101,11 @@ s.waitForBoot({
 
 	//synthdefs
 	SynthDef(\distortedResonator, {
-		arg in=0, out=0, maxdelaytime=0.2, latency=ControlRate.ir.reciprocal, delaytime=440.reciprocal, gain=1, amp=1;
+		arg in=0, out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, gain=1, amp=1;
 		var sig;
+		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
 		sig = In.ar(in).madd(gain).softclip;
-		sig = DelayL.ar(sig, maxdelaytime, (delaytime.reciprocal - latency), amp);
+		sig = DelayL.ar(sig, maxdelaytime, (delaytime.reciprocal - latency.poll), amp);
 		Out.ar(out, sig);
 	}).add;
 
