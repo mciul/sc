@@ -1,8 +1,87 @@
-s.boot;
-76.midicps
-(76-36-8).midicps
+f = (76-36).midicps; // "fundamental" frequency - somewhat arbitrary, but this is the max at default control rate
+~delayTimes = Dictionary.newFrom([\eighth, 1/8, \sixth, 1/6, \fifth, 1/5, \quarter, 1/4, \third, 1/3, \half, 1/2]);
+~delayKeys = ~delayTimes.keys.asArray;
+
+~makeBusses = {
+	~bus = Dictionary.new;
+	~bus.add(\feedback -> Bus.audio(s, ~delayKeys.size));
+	~bus.add(\res -> Bus.audio(s,~delayKeys.size));
+};
+
+~cleanup = {
+	s.newBusAllocators;
+	ServerBoot.removeAll;
+	ServerTree.removeAll;
+	ServerQuit.removeAll;
+};
+
+~makeNodes = {
+	s.bind({
+		~fxGrp = Group.new;
+		~feedbackGrp = Group.before(~fxGrp);
+		~fxSynths = ~delayKeys.collect({
+			arg key, i;
+			Synth.new(\distortedResonator,
+				[
+					\in, ~bus[\res].index + i,
+					\out, ~bus[\feedback].index + i,
+					\delaytime, ~delayTimes[\key]
+				],
+				~feedbackGrp
+			);
+		});
+	});
+};
+
+~openGates = {
+	arg midi, velocity;
+	// TODO
+};
+
+~closeGates = {
+	arg midi;
+	// TODO
+};
+
+~controlGates = {
+	arg key, val;
+	// TODO
+}
+
+~mapKeyboard = {
+	MIDIIn.connectAll;
+
+	MIDIdef.noteOn(\noteOn, {
+		arg val, num, chan, src;
+		~closeGates.value(num);
+		~openGates.value(num, val);
+	});
+
+	MIDIdef.noteOff(\noteOff, {
+		arg val, num, chan, src;
+		~closeGates.value(num);
+	});
+
+	MIDIdef.bend(\bend, {
+		arg val, chan, src;
+		~bend = val.linlin(0,16383, -2, 2);
+		~controlGates.value(\bend, ~bend);
+	});
+
+	MIDIdef.cc(\modWheel, {
+		arg val, num, chan, src;
+		if (
+			num == 1,
+			{
+				~mod = val.linlin(0,127,0,1);
+				~controlGates.value(\mod, ~mod);
+			}
+		);
+	});
+};
+
 (
-SynthDef(\distortRes, {
+SynthDef(\distortedResonator, {
 	arg in=0, out=0, maxdelaytime=0.2, latency=ControlRate.ir.reciprocal, delaytime=440.reciprocal, gain=1, amp=1;
 	var sig;
 	sig = In.ar(in).madd(gain).softclip;
@@ -13,10 +92,32 @@ SynthDef(\distortRes, {
 SynthDef(\feedbackGate, {
 	arg in=0, out=0, amp=0.3, gate=0;
 	var sig;
-	sig = FeedbackIn.ar(in) * EnvGen.ar(Env.adsr(sustainLevel:1, releaseTime:0.2), gate, amp, doneAction:2);
+	sig = InFeedback.ar(in) * EnvGen.ar(Env.adsr(sustainLevel:1, releaseTime:0.2), gate, amp, doneAction:2);
 	Out.ar(out, sig);
 });
+
+SynthDef(\noiseFloor, {
+	arg out=0, amp=0.001;
+	Out.ar(out, BrownNoise.ar(amp));
+});
 )
+
+ServerBoot.add(~makeBusses);
+ServerQuit.add(~cleanup);
+s.waitForBoot({
+	s.sync;
+	// synthdefs go here
+	s.sync;
+
+	// remaining functions
+	ServerTree.add(~makeNodes);
+	ServerTree.add(~mapKeyboard);
+	s.freeAll;
+
+	s.sync;
+
+	"done".postln;
+});
 
 /*
 (44100/64).cpsmidi ~= 76.77
