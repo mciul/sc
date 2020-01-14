@@ -1,6 +1,8 @@
 (
 f = (76-36).midicps; // "fundamental" frequency - somewhat arbitrary, but this is the max at default control rate
-~delayTimes = Dictionary.newFrom([\eighth, 1/8, \sixth, 1/6, \fifth, 1/5, \quarter, 1/4, \third, 1/3, \half, 1/2]);
+~delayTimes = Dictionary.newFrom(
+	[\eighth, 1/8, \sixth, 1/6, \fifth, 1/5, \quarter, 1/4, \third, 1/3, \half, 1/2] * f.reciprocal
+);
 ~delayKeys = ~delayTimes.keys.asArray;
 
 ~out = 0;
@@ -23,13 +25,13 @@ f = (76-36).midicps; // "fundamental" frequency - somewhat arbitrary, but this i
 		~group.add(\res -> Group.new);
 		~group.add(\feedback -> Group.before(~group[\res]));
 		~group.add(\mixOut -> Group.after(~group[\res]));
-		~feedbackSynths = ~delayKeys.collect({
+		~delaySynths = ~delayKeys.collect({
 			arg key, i;
 			Synth.new(\distortedResonator,
 				[
 					\in, ~bus[\res].index + i,
 					\out, ~bus[\feedback].index + i,
-					\delaytime, ~delayTimes[\key]
+					\delaytime, ~delayTimes[key].postln;
 				],
 				~group[\res]
 			);
@@ -102,7 +104,7 @@ s.waitForBoot({
 		arg in=0, out=0, maxdelaytime=0.2, latency=ControlRate.ir.reciprocal, delaytime=440.reciprocal, gain=1, amp=1;
 		var sig;
 		sig = In.ar(in).madd(gain).softclip;
-		sig = DelayL.ar(sig, maxdelaytime, delaytime.reciprocal - latency, amp);
+		sig = DelayL.ar(sig, maxdelaytime, (delaytime.reciprocal - latency), amp);
 		Out.ar(out, sig);
 	}).add;
 
@@ -136,8 +138,9 @@ s.waitForBoot({
 
 ~bus
 ~group
-~noiseSynth.set(\amp, 0.3);
-~feedbackSynths[1].free;
+~noiseSynth.set(\amp, 0.1);
+~delaySynths.do({ arg s; s.free});
+
 (
 SynthDef(\test, {
 	arg in, out;
@@ -152,50 +155,11 @@ y.free;
 ~outSynth = Synth(\test, [\out, ~out, \in, ~bus[\feedback].index], ~group[\mixOut]);
 x= Synth.new(\noiseFloor, [\out, 0, \amp, 0.1]);
 x.free;
-x= Synth.new(\distortedResonator,
-				[
-					\in, ~bus[\res].index + 0,
-					\out, ~bus[\feedback].index + 0,
-					\delaytime, ~delayTimes[\eighth]
-				],
-				~feedbackGrp
-			);
-// separately
 
 s.quit
 ServerBoot.add(~makeBusses);
 ServerQuit.add(~cleanup);
 s.boot
-
-(
-	SynthDef(\distortedResonator, {
-		arg in=0, out=0, maxdelaytime=0.2, latency=ControlRate.ir.reciprocal, delaytime=440.reciprocal, gain=1, amp=1;
-		var sig;
-		sig = In.ar(in).madd(gain).softclip;
-		sig = DelayL.ar(sig, maxdelaytime, delaytime.reciprocal - latency, amp);
-		Out.ar(out, sig);
-	}).add;
-
-	SynthDef(\feedbackGate, {
-		arg in=0, out=0, amp=0.3, gate=0;
-		var sig;
-		sig = InFeedback.ar(in) * EnvGen.ar(Env.adsr(sustainLevel:1, releaseTime:0.2), gate, amp, doneAction:2);
-		Out.ar(out, sig);
-	}).add;
-
-	SynthDef(\noiseFloor, {
-		arg out=0, amp=0.001;
-		Out.ar(out, BrownNoise.ar(amp!~delayKeys.size));
-	}).add;
-
-	SynthDef(\mixOut, {
-		arg in, out;
-		Out.ar(out, Splay.ar(In.ar(in, ~delayKeys.size)));
-	}).add;
-)
-ServerTree.add(~makeNodes);
-ServerTree.add(~mapKeyboard);
-s.freeAll;
 
 
 /*
