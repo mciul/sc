@@ -6,43 +6,44 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 );
 ~delayKeys = ~delayTimes.keys.asArray;
 
-~feedbackPaths = Array.fill(128, { [] })
-~feedbackPaths[~tonic+36] = [\eighth] // 8f = tonic + 36.0 semitone
-~feedbackPaths[~tonic+31] = [\sixth] // 6f = tonic + 31.019550008653873 semitone
-~feedbackPaths[~tonic+28] = [\fifth] // 5f = tonic + 27.863137138648348 semitone
-~feedbackPaths[~tonic+24] = [\quarter] // 4f = tonic + 24.0 semitone
-~feedbackPaths[~tonic+21] = [\sixth, \eighth] // 24/7 f = tonic + 21.331290943962625 semitone
-~feedbackPaths[~tonic+19] = [\third] // 3f = tonic + 19.019550008653876 semitone
-~feedbackPaths[~tonic+17] = [\quarter, \eighth] // 8/3 f = tonic + 16.980449991346124 semitone
-~feedbackPaths[~tonic+15] = [\quarter, \sixth] // 12/5 f = tonic + 15.156412870005525 semitone
-~feedbackPaths[~tonic+14] = [\quarter, \fifth] // 20/9 f = tonic + 13.8240371213406 semitone
-~feedbackPaths[~tonic+12] = [\half] // 2f = tonic + 12.0 semitone
-~feedbackPaths[~tonic+11] = [\third, \fifth] // 15/8 f = tonic + 10.88268714730222 semitone
-~feedbackPaths[~tonic+10] = [\quarter, \fifth, \eighth] // 40/23 f = tonic + 9.580393665964195 semitone
-~feedbackPaths[~tonic+9] = [\third, \quarter] // 12/7 f = tonic + 9.331290943962623 semitone
-~feedbackPaths[~tonic+8] = [\half, \eighth] // 8/5 f = tonic + 8.136862861351654 semitone
-~feedbackPaths[~tonic+7] = [\half, \sixth] // 3/2 f = tonic + 7.019550008653875 semitone
-~feedbackPaths[~tonic+6] = [\half, \fifth] // 10/7 f = tonic + 6.174878073957099 semitone
-~feedbackPaths[~tonic+5] = [\half, \quarter] // 4/3 f = tonic + 4.980449991346124 semitone
-~feedbackPaths[~tonic+4] = [\half, \sixth, \eighth] // 24/19 f = tonic + 4.04441984733085 semitone
-~feedbackPaths[~tonic+3] = [\half, \third] // 6/5 f = tonic + 3.1564128700055254 semitone
-~feedbackPaths[~tonic+2] = [\half, \quarter, \eighth] // 8/7 f = tonic + 2.31174093530875 semitone
-~feedbackPaths[~tonic+1] = [\half, \quarter, \fifth] // 20/19 f = tonic + 0.8880069773253213 semitone
-~feedbackPaths[~tonic+0] = [\half, \third, \sixth] // f = tonic + 0.0 semitone
-~feedbackPaths[~tonic-1] = [\half, \quarter, \sixth, \eighth] // 24/25 f = tonic -0.7067242686428228 semitone
-~feedbackPaths[~tonic-2] = [\half, \third, \sixth, \eighth] // 8/9 f = tonic -2.0391000173077494 semitone
-~feedbackPaths[~tonic-3] = [\half, \third, \fifth, \sixth] // 5/6 f = tonic -3.1564128700055254 semitone
-~feedbackPaths[~tonic-4] = [\half, \third, \quarter, \sixth] // 4/5 f = tonic -3.8631371386483475 semitone
-~feedbackPaths[~tonic-5] = [\half, \third, \fifth, \sixth, \eighth] // 40/53 f = tonic -4.871908316110041 semitone
-~feedbackPaths[~tonic-6] = [\half, \third, \quarter, \sixth, \eighth] // 8/11 f = tonic -5.513179423647567 semitone
-~feedbackPaths[~tonic-7] = [\half, \third, \quarter, \fifth, \sixth] // 20/29 f = tonic -6.432634802882516 semitone
-~feedbackPaths[~tonic-8] = [\half, \third, \quarter, \fifth, \sixth, \eighth] // 40/63 f = tonic -7.8642219433506515 semitone
+~feedbackPaths = Array.fill(128, { [] });
+~feedbackPaths[~tonic+36] = [\eighth]; // 8f = tonic + 36.0 semitone
+~feedbackPaths[~tonic+31] = [\sixth]; // 6f = tonic + 31.019550008653873 semitone
+~feedbackPaths[~tonic+28] = [\fifth]; // 5f = tonic + 27.863137138648348 semitone
+~feedbackPaths[~tonic+24] = [\quarter]; // 4f = tonic + 24.0 semitone
+~feedbackPaths[~tonic+21] = [\sixth, \eighth]; // 24/7 f = tonic + 21.331290943962625 semitone
+~feedbackPaths[~tonic+19] = [\third]; // 3f = tonic + 19.019550008653876 semitone
+~feedbackPaths[~tonic+17] = [\quarter, \eighth]; // 8/3 f = tonic + 16.980449991346124 semitone
+~feedbackPaths[~tonic+15] = [\quarter, \sixth]; // 12/5 f = tonic + 15.156412870005525 semitone
+~feedbackPaths[~tonic+14] = [\quarter, \fifth]; // 20/9 f = tonic + 13.8240371213406 semitone
+~feedbackPaths[~tonic+12] = [\half]; // 2f = tonic + 12.0 semitone
+~feedbackPaths[~tonic+11] = [\third, \fifth]; // 15/8 f = tonic + 10.88268714730222 semitone
+~feedbackPaths[~tonic+10] = [\quarter, \fifth, \eighth]; // 40/23 f = tonic + 9.580393665964195 semitone
+~feedbackPaths[~tonic+9] = [\third, \quarter]; // 12/7 f = tonic + 9.331290943962623 semitone
+~feedbackPaths[~tonic+8] = [\half, \eighth]; // 8/5 f = tonic + 8.136862861351654 semitone
+~feedbackPaths[~tonic+7] = [\half, \sixth]; // 3/2 f = tonic + 7.019550008653875 semitone
+~feedbackPaths[~tonic+6] = [\half, \fifth]; // 10/7 f = tonic + 6.174878073957099 semitone
+~feedbackPaths[~tonic+5] = [\half, \quarter]; // 4/3 f = tonic + 4.980449991346124 semitone
+~feedbackPaths[~tonic+4] = [\half, \sixth, \eighth]; // 24/19 f = tonic + 4.04441984733085 semitone
+~feedbackPaths[~tonic+3] = [\half, \third]; // 6/5 f = tonic + 3.1564128700055254 semitone
+~feedbackPaths[~tonic+2] = [\half, \quarter, \eighth]; // 8/7 f = tonic + 2.31174093530875 semitone
+~feedbackPaths[~tonic+1] = [\half, \quarter, \fifth]; // 20/19 f = tonic + 0.8880069773253213 semitone
+~feedbackPaths[~tonic+0] = [\half, \third, \sixth]; // f = tonic + 0.0 semitone
+~feedbackPaths[~tonic-1] = [\half, \quarter, \sixth, \eighth]; // 24/25 f = tonic -0.7067242686428228 semitone
+~feedbackPaths[~tonic-2] = [\half, \third, \sixth, \eighth]; // 8/9 f = tonic -2.0391000173077494 semitone
+~feedbackPaths[~tonic-3] = [\half, \third, \fifth, \sixth]; // 5/6 f = tonic -3.1564128700055254 semitone
+~feedbackPaths[~tonic-4] = [\half, \third, \quarter, \sixth]; // 4/5 f = tonic -3.8631371386483475 semitone
+~feedbackPaths[~tonic-5] = [\half, \third, \fifth, \sixth, \eighth]; // 40/53 f = tonic -4.871908316110041 semitone
+~feedbackPaths[~tonic-6] = [\half, \third, \quarter, \sixth, \eighth]; // 8/11 f = tonic -5.513179423647567 semitone
+~feedbackPaths[~tonic-7] = [\half, \third, \quarter, \fifth, \sixth]; // 20/29 f = tonic -6.432634802882516 semitone
+~feedbackPaths[~tonic-8] = [\half, \third, \quarter, \fifth, \sixth, \eighth]; // 40/63 f = tonic -7.8642219433506515 semitone
 
 ~out = 0;
 ~makeBusses = {
 	~bus = Dictionary.new;
 	~bus.add(\feedback -> Bus.audio(s, ~delayKeys.size));
 	~bus.add(\res -> Bus.audio(s,~delayKeys.size));
+	~bus.add(\mixOut -> Bus.audio(s, ~delayKeys.size));
 };
 
 ~cleanup = {
@@ -63,14 +64,15 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 			Synth.new(\distortedResonator,
 				[
 					\in, ~bus[\res].index + i,
-					\out, ~bus[\feedback].index + i,
+					\feedback_out, ~bus[\feedback].index + i,
+					\out, ~bus[\mixOut].index + i,
 					\delaytime, ~delayTimes[key].postln;
 				],
 				~group[\res]
 			);
 		});
-		~outSynth = Synth.new(\mixOut, [\out, ~out, \in, ~bus[\feedback].index], ~group[\mixOut]);
-		~noiseSynth = Synth.new(\noiseFloor, [\out, ~bus[\res].index], ~group[\feedback]);
+		~outSynth = Synth.new(\mixOut, [\out, ~out, \in, ~bus[\mixOut].index], ~group[\mixOut]);
+		~noiseSynth = Synth.new(\noiseFloor, [\out, ~bus[\feedback].index], ~group[\feedback]);
 	});
 };
 
@@ -122,8 +124,6 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 };
 )
 
-// together - not working
-
 (
 ServerBoot.add(~makeBusses);
 ServerQuit.add(~cleanup);
@@ -134,19 +134,20 @@ s.waitForBoot({
 
 	//synthdefs
 	SynthDef(\distortedResonator, {
-		arg in=0, out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, gain=1, amp=1;
+		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, gain=1, amp=1;
 		var sig;
 		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
 		sig = In.ar(in).madd(gain).softclip;
-		sig = DelayL.ar(sig, maxdelaytime, (delaytime.reciprocal - latency.poll), amp);
+		sig = DelayL.ar(sig, maxdelaytime, (delaytime.reciprocal - latency), amp);
+		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
 	}).add;
 
 	SynthDef(\feedbackGate, {
 		arg in=0, out=0, amp=0.3, gate=0;
 		var sig;
-		sig = InFeedback.ar(in) * EnvGen.ar(Env.adsr(sustainLevel:1, releaseTime:0.2), gate, amp, doneAction:2);
-		Out.ar(out, sig);
+		sig = InFeedback.ar(in) * EnvGen.ar(Env.adsr(sustainLevel:1, releaseTime:0.2), gate, doneAction:2);
+		Out.ar(out, sig * amp);
 	}).add;
 
 	SynthDef(\noiseFloor, {
@@ -174,19 +175,16 @@ s.waitForBoot({
 ~group
 ~noiseSynth.set(\amp, 0.1);
 ~delaySynths.do({ arg s; s.free});
-
-(
-SynthDef(\test, {
-	arg in, out;
-	Out.ar(out, In.ar(in, 2).neg);
-}).add;
-)
-y={Out.ar(~bus[\feedback].index+5, SinOsc.ar(mul:0.1))}.play;
+y={Out.ar(~bus[\feedback].index, SinOsc.ar(440,0,0.1));}.play;
+y.free
+x=Synth.new(\feedbackGate, [\amp, 0.1, \gate, 1, \in: ~bus[\feedback].index, \out: ~bus[\res].index]);
+x.set(\amp, 0.9999);
+x.set(\gate, 0);
+y={Out.ar(~bus[\res].index+5, SinOsc.ar(mul:0.1))}.play;
 y.free;
 ~outSynth.free
 ~outSynth.set(\out, 1);
 ~outSynth = Synth(\mixOut, [\out, ~out, \in, ~bus[\res].index], ~group[\mixOut]);
-~outSynth = Synth(\test, [\out, ~out, \in, ~bus[\feedback].index], ~group[\mixOut]);
 x= Synth.new(\noiseFloor, [\out, 0, \amp, 0.1]);
 x.free;
 
