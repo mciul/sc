@@ -67,7 +67,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 		~busAt.add(busKey -> Dictionary.new());
 		~delayKeys.do({
 			arg delayKey, i;
-			~busAt[busKey].add(delayKey -> i);
+			~busAt[busKey].add(delayKey -> (~bus[busKey].index + i));
 		});
 	});
 };
@@ -86,13 +86,13 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 		~group.add(\feedback -> Group.before(~group[\res]));
 		~group.add(\mixOut -> Group.after(~group[\res]));
 		~delaySynths = ~delayKeys.collect({
-			arg key, i;
+			arg key;
 			Synth.new(\distortedResonator,
 				[
-					\in, ~bus[\res].index + i,
-					\feedback_out, ~bus[\feedback].index + i,
-					\out, ~bus[\mixOut].index + i,
-					\delaytime, ~delayTimes[key].postln;
+					\in, ~busAt[\res][key],
+					\feedback_out, ~busAt[\feedback][key],
+					\out, ~busAt[\mixOut][key],
+					\delaytime, ~delayTimes[key];
 				],
 				~group[\res]
 			);
@@ -178,6 +178,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 };
 )
 
+s.quit;
 (
 ServerBoot.add(~makeBusses);
 ServerQuit.add(~cleanup);
@@ -192,8 +193,9 @@ s.waitForBoot({
 		var sig;
 		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
 		sig = In.ar(in).madd(gain).softclip;
-		sig = LPF.ar(sig, MouseX.kr(100,10000,1).poll(0.2));
+		//sig = LPF.ar(sig, MouseX.kr(500,15000,1).poll(0.2), MouseY.kr(0.9,1.1,1).poll(0.4));
 		sig = DelayL.ar(sig, maxdelaytime, (delaytime.reciprocal - latency), amp);
+		sig = LeakDC.ar(sig);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
 	}).add;
