@@ -1,4 +1,5 @@
-
+~feedbackLinks[36].matchItem([\half, \third])
+~feedbackLinks[36][0] == [\half, \third]
 (
 ~tonic = 76-36;
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is the max at default control rate
@@ -46,6 +47,22 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 	origins.collect({
 		arg in, i;
 		[in, outs[i]]
+	});
+});
+
+~linkUsers = Dictionary.new();
+~delayKeys.do({
+	arg source;
+	~delayKeys.do({
+		arg dest;
+		var link;
+		link = [source, dest];
+		~linkUsers.add(
+			link -> (0..~feedbackLinks.size-1).select({
+				arg i;
+				~feedbackLinks[i].any({ |other| other == link });
+			})
+		);
 	});
 });
 
