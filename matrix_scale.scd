@@ -123,7 +123,8 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 				\out, ~busAt[\res][out],
 				\amp, amp,
 				\gate, 1
-			]
+			],
+			~group[\feedback]
 		);
 	});
 };
@@ -191,6 +192,7 @@ s.waitForBoot({
 		var sig;
 		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
 		sig = In.ar(in).madd(gain).softclip;
+		sig = LPF.ar(sig, MouseX.kr(100,10000,1).poll(0.2));
 		sig = DelayL.ar(sig, maxdelaytime, (delaytime.reciprocal - latency), amp);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
