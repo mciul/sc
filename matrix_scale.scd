@@ -95,10 +95,15 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 
 	SynthDef(\feedbackGate, {
 		arg in=0, out=0, amp=0.3, gate=0;
-		var sig, sustain;
+		var sig, env, sustain;
 		sustain = 0.7;
-		sig = InFeedback.ar(in) * EnvGen.ar(Env.adsr(decayTime: 0.2, sustainLevel:sustain, releaseTime:0.3), gate, doneAction:2);
-		Out.ar(out, sig * amp * amp.linlin(0,1,0,4/sustain));
+		env = EnvGen.ar(
+			Env.adsr(decayTime: 0.2, sustainLevel:sustain, releaseTime:0.3),
+			gate,
+			doneAction:2
+		);
+		sig = InFeedback.ar(in) * env * amp * 4/sustain;
+		Out.ar(out, sig);
 	}).add;
 
 	SynthDef(\noiseFloor, {
@@ -142,7 +147,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 ~openGates = {
 	arg midi, velocity;
 	var amp;
-	amp = (velocity.linlin(0,127,0,-60).dbamp.neg + 1).postln;
+	amp = (velocity.linlin(0,127,0,1)).postln;
 	"openGates(".post;
 	midi.post;
 	", ".post;
@@ -222,7 +227,6 @@ s.freeAll;
 (
 ServerBoot.add(~makeBusses);
 ServerQuit.add(~cleanup);
-"not waiting".postln;
 s.waitForBoot({
 	"waitForBoot".postln;
 	s.sync;
