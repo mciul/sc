@@ -1,9 +1,42 @@
 (
-f = (76-36).midicps; // "fundamental" frequency - somewhat arbitrary, but this is the max at default control rate
+~tonic = 76-36;
+f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is the max at default control rate
 ~delayTimes = Dictionary.newFrom(
 	[\eighth, 1/8, \sixth, 1/6, \fifth, 1/5, \quarter, 1/4, \third, 1/3, \half, 1/2] * f.reciprocal
 );
 ~delayKeys = ~delayTimes.keys.asArray;
+
+~feedbackPaths = Array.fill(128, { [] })
+~feedbackPaths[~tonic+36] = [\eighth] // 8f = tonic + 36.0 semitone
+~feedbackPaths[~tonic+31] = [\sixth] // 6f = tonic + 31.019550008653873 semitone
+~feedbackPaths[~tonic+28] = [\fifth] // 5f = tonic + 27.863137138648348 semitone
+~feedbackPaths[~tonic+24] = [\quarter] // 4f = tonic + 24.0 semitone
+~feedbackPaths[~tonic+21] = [\sixth, \eighth] // 24/7 f = tonic + 21.331290943962625 semitone
+~feedbackPaths[~tonic+19] = [\third] // 3f = tonic + 19.019550008653876 semitone
+~feedbackPaths[~tonic+17] = [\quarter, \eighth] // 8/3 f = tonic + 16.980449991346124 semitone
+~feedbackPaths[~tonic+15] = [\quarter, \sixth] // 12/5 f = tonic + 15.156412870005525 semitone
+~feedbackPaths[~tonic+14] = [\quarter, \fifth] // 20/9 f = tonic + 13.8240371213406 semitone
+~feedbackPaths[~tonic+12] = [\half] // 2f = tonic + 12.0 semitone
+~feedbackPaths[~tonic+11] = [\third, \fifth] // 15/8 f = tonic + 10.88268714730222 semitone
+~feedbackPaths[~tonic+10] = [\quarter, \fifth, \eighth] // 40/23 f = tonic + 9.580393665964195 semitone
+~feedbackPaths[~tonic+9] = [\third, \quarter] // 12/7 f = tonic + 9.331290943962623 semitone
+~feedbackPaths[~tonic+8] = [\half, \eighth] // 8/5 f = tonic + 8.136862861351654 semitone
+~feedbackPaths[~tonic+7] = [\half, \sixth] // 3/2 f = tonic + 7.019550008653875 semitone
+~feedbackPaths[~tonic+6] = [\half, \fifth] // 10/7 f = tonic + 6.174878073957099 semitone
+~feedbackPaths[~tonic+5] = [\half, \quarter] // 4/3 f = tonic + 4.980449991346124 semitone
+~feedbackPaths[~tonic+4] = [\half, \sixth, \eighth] // 24/19 f = tonic + 4.04441984733085 semitone
+~feedbackPaths[~tonic+3] = [\half, \third] // 6/5 f = tonic + 3.1564128700055254 semitone
+~feedbackPaths[~tonic+2] = [\half, \quarter, \eighth] // 8/7 f = tonic + 2.31174093530875 semitone
+~feedbackPaths[~tonic+1] = [\half, \quarter, \fifth] // 20/19 f = tonic + 0.8880069773253213 semitone
+~feedbackPaths[~tonic+0] = [\half, \third, \sixth] // f = tonic + 0.0 semitone
+~feedbackPaths[~tonic-1] = [\half, \quarter, \sixth, \eighth] // 24/25 f = tonic -0.7067242686428228 semitone
+~feedbackPaths[~tonic-2] = [\half, \third, \sixth, \eighth] // 8/9 f = tonic -2.0391000173077494 semitone
+~feedbackPaths[~tonic-3] = [\half, \third, \fifth, \sixth] // 5/6 f = tonic -3.1564128700055254 semitone
+~feedbackPaths[~tonic-4] = [\half, \third, \quarter, \sixth] // 4/5 f = tonic -3.8631371386483475 semitone
+~feedbackPaths[~tonic-5] = [\half, \third, \fifth, \sixth, \eighth] // 40/53 f = tonic -4.871908316110041 semitone
+~feedbackPaths[~tonic-6] = [\half, \third, \quarter, \sixth, \eighth] // 8/11 f = tonic -5.513179423647567 semitone
+~feedbackPaths[~tonic-7] = [\half, \third, \quarter, \fifth, \sixth] // 20/29 f = tonic -6.432634802882516 semitone
+~feedbackPaths[~tonic-8] = [\half, \third, \quarter, \fifth, \sixth, \eighth] // 40/63 f = tonic -7.8642219433506515 semitone
 
 ~out = 0;
 ~makeBusses = {
@@ -218,62 +251,68 @@ longer version:
 (63/40).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/4 + 1/5 + 1/6 + 1/8 = + (-7.8642219433506515) semitones
 
 full version:
-(7/24).reciprocal.ratiomidi.mod(12) // 1/6 + 1/8 = + (21.331290943962625) semitones
-(13/40).reciprocal.ratiomidi.mod(12) // 1/5 + 1/8 = + (19.457860520955244) semitones
-(11/30).reciprocal.ratiomidi.mod(12) // 1/5 + 1/6 = + (17.36950772365466) semitones
-(3/8).reciprocal.ratiomidi.mod(12) // 1/4 + 1/8 = + (16.980449991346124) semitones
-(5/12).reciprocal.ratiomidi.mod(12) // 1/4 + 1/6 = + (15.156412870005525) semitones
-(9/20).reciprocal.ratiomidi.mod(12) // 1/4 + 1/5 = + (13.8240371213406) semitones
-(11/24).reciprocal.ratiomidi.mod(12) // 1/3 + 1/8 = + (13.50637058500631) semitones
-(59/120).reciprocal.ratiomidi.mod(12) // 1/5 + 1/6 + 1/8 = + (12.29097055496013) semitones
-(1/2).reciprocal.ratiomidi.mod(12) // 1/3 + 1/6 = + (12.0) semitones
-(8/15).reciprocal.ratiomidi.mod(12) // 1/3 + 1/5 = + (10.88268714730222) semitones
-(13/24).reciprocal.ratiomidi.mod(12) // 1/4 + 1/6 + 1/8 = + (10.614273390960768) semitones
-(23/40).reciprocal.ratiomidi.mod(12) // 1/4 + 1/5 + 1/8 = + (9.580393665964195) semitones
-(7/12).reciprocal.ratiomidi.mod(12) // 1/3 + 1/4 = + (9.331290943962623) semitones
-(37/60).reciprocal.ratiomidi.mod(12) // 1/4 + 1/5 + 1/6 = + (8.369246759754825) semitones
-(5/8).reciprocal.ratiomidi.mod(12) // 1/2 + 1/8 = + (8.136862861351654) semitones
-(5/8).reciprocal.ratiomidi.mod(12) // 1/3 + 1/6 + 1/8 = + (8.136862861351654) semitones
-(79/120).reciprocal.ratiomidi.mod(12) // 1/3 + 1/5 + 1/8 = + (7.237318169176989) semitones
-(2/3).reciprocal.ratiomidi.mod(12) // 1/2 + 1/6 = + (7.019550008653875) semitones
-(7/10).reciprocal.ratiomidi.mod(12) // 1/3 + 1/5 + 1/6 = + (6.174878073957099) semitones
-(7/10).reciprocal.ratiomidi.mod(12) // 1/2 + 1/5 = + (6.174878073957099) semitones
-(17/24).reciprocal.ratiomidi.mod(12) // 1/3 + 1/4 + 1/8 = + (5.969995913649799) semitones
-(89/120).reciprocal.ratiomidi.mod(12) // 1/4 + 1/5 + 1/6 + 1/8 = + (5.173885975705449) semitones
-(3/4).reciprocal.ratiomidi.mod(12) // 1/3 + 1/4 + 1/6 = + (4.980449991346124) semitones
-(3/4).reciprocal.ratiomidi.mod(12) // 1/2 + 1/4 = + (4.980449991346124) semitones
-(47/60).reciprocal.ratiomidi.mod(12) // 1/3 + 1/4 + 1/5 = + (4.227620927170575) semitones
-(19/24).reciprocal.ratiomidi.mod(12) // 1/2 + 1/6 + 1/8 = + (4.04441984733085) semitones
-(33/40).reciprocal.ratiomidi.mod(12) // 1/2 + 1/5 + 1/8 = + (3.3304077063469073) semitones
-(33/40).reciprocal.ratiomidi.mod(12) // 1/3 + 1/5 + 1/6 + 1/8 = + (3.3304077063469073) semitones
-(5/6).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 = + (3.1564128700055254) semitones
-(13/15).reciprocal.ratiomidi.mod(12) // 1/2 + 1/5 + 1/6 = + (2.4774105296091147) semitones
-(7/8).reciprocal.ratiomidi.mod(12) // 1/2 + 1/4 + 1/8 = + (2.31174093530875) semitones
-(7/8).reciprocal.ratiomidi.mod(12) // 1/3 + 1/4 + 1/6 + 1/8 = + (2.31174093530875) semitones
-(109/120).reciprocal.ratiomidi.mod(12) // 1/3 + 1/4 + 1/5 + 1/8 = + (1.6644752499791071) semitones
-(11/12).reciprocal.ratiomidi.mod(12) // 1/2 + 1/4 + 1/6 = + (1.5063705850063096) semitones
-(19/20).reciprocal.ratiomidi.mod(12) // 1/2 + 1/4 + 1/5 = + (0.8880069773253213) semitones
-(19/20).reciprocal.ratiomidi.mod(12) // 1/3 + 1/4 + 1/5 + 1/6 = + (0.8880069773253213) semitones
-(23/24).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/8 = + (0.7368065359697193) semitones
-(119/120).reciprocal.ratiomidi.mod(12) // 1/2 + 1/5 + 1/6 + 1/8 = + (0.14487398760689965) semitones
-(1/1).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/6 = + (0.0) semitones
-(31/30).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/5 = + (-0.5676685773402816) semitones
-(25/24).reciprocal.ratiomidi.mod(12) // 1/2 + 1/4 + 1/6 + 1/8 = + (-0.7067242686428228) semitones
-(43/40).reciprocal.ratiomidi.mod(12) // 1/3 + 1/4 + 1/5 + 1/6 + 1/8 = + (-1.2520399177768273) semitones
-(43/40).reciprocal.ratiomidi.mod(12) // 1/2 + 1/4 + 1/5 + 1/8 = + (-1.2520399177768273) semitones
-(13/12).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/4 = + (-1.3857266090392308) semitones
-(67/60).reciprocal.ratiomidi.mod(12) // 1/2 + 1/4 + 1/5 + 1/6 = + (-1.9103831381910463) semitones
-(9/8).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/6 + 1/8 = + (-2.0391000173077494) semitones
-(139/120).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/5 + 1/8 = + (-2.544605725379868) semitones
-(6/5).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/5 + 1/6 = + (-3.1564128700055254) semitones
-(29/24).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/4 + 1/8 = + (-3.2762219328769895) semitones
-(149/120).reciprocal.ratiomidi.mod(12) // 1/2 + 1/4 + 1/5 + 1/6 + 1/8 = + (-3.7473350982437177) semitones
-(5/4).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/4 + 1/6 = + (-3.8631371386483475) semitones
-(77/60).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/4 + 1/5 = + (-4.318751341036596) semitones
-(53/40).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/5 + 1/6 + 1/8 = + (-4.871908316110041) semitones
-(11/8).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/4 + 1/6 + 1/8 = + (-5.513179423647567) semitones
-(169/120).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/4 + 1/5 + 1/8 = + (-5.9278660880839915) semitones
-(29/20).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/4 + 1/5 + 1/6 = + (-6.432634802882516) semitones
-(63/40).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/4 + 1/5 + 1/6 + 1/8 = + (-7.8642219433506515) semitones
+~feedbackPaths[~tonic+36] = [\eighth] // 8/1f = tonic + 36.0 semitone
+~feedbackPaths[~tonic+31] = [\sixth] // 6/1f = tonic + 31.019550008653873 semitone
+~feedbackPaths[~tonic+28] = [\fifth] // 5/1f = tonic + 27.863137138648348 semitone
+~feedbackPaths[~tonic+24] = [\quarter] // 4/1f = tonic + 24.0 semitone
+~feedbackPaths[~tonic+21] = [\sixth, \eighth] // 24/7f = tonic + 21.331290943962625 semitone
+//~feedbackPaths[~tonic+19] = [\fifth, \eighth] // 40/13f = tonic + 19.457860520955244 semitone
+~feedbackPaths[~tonic+19] = [\third] // 3/1f = tonic + 19.019550008653876 semitone
+//~feedbackPaths[~tonic+17] = [\fifth, \sixth] // 30/11f = tonic + 17.36950772365466 semitone
+~feedbackPaths[~tonic+17] = [\quarter, \eighth] // 8/3f = tonic + 16.980449991346124 semitone
+~feedbackPaths[~tonic+15] = [\quarter, \sixth] // 12/5f = tonic + 15.156412870005525 semitone
+~feedbackPaths[~tonic+14] = [\quarter, \fifth] // 20/9f = tonic + 13.8240371213406 semitone
+//~feedbackPaths[~tonic+14] = [\third, \eighth] // 24/11f = tonic + 13.50637058500631 semitone
+//~feedbackPaths[~tonic+12] = [\fifth, \sixth, \eighth] // 120/59f = tonic + 12.29097055496013 semitone
+~feedbackPaths[~tonic+12] = [\half] // 2/1f = tonic + 12.0 semitone
+//~feedbackPaths[~tonic+12] = [\third, \sixth] // 2/1f = tonic + 12.0 semitone
+~feedbackPaths[~tonic+11] = [\third, \fifth] // 15/8f = tonic + 10.88268714730222 semitone
+//~feedbackPaths[~tonic+11] = [\quarter, \sixth, \eighth] // 24/13f = tonic + 10.614273390960768 semitone
+~feedbackPaths[~tonic+10] = [\quarter, \fifth, \eighth] // 40/23f = tonic + 9.580393665964195 semitone
+~feedbackPaths[~tonic+9] = [\third, \quarter] // 12/7f = tonic + 9.331290943962623 semitone
+//~feedbackPaths[~tonic+8] = [\quarter, \fifth, \sixth] // 60/37f = tonic + 8.369246759754825 semitone
+~feedbackPaths[~tonic+8] = [\half, \eighth] // 8/5f = tonic + 8.136862861351654 semitone
+//~feedbackPaths[~tonic+8] = [\third, \sixth, \eighth] // 8/5f = tonic + 8.136862861351654 semitone
+//~feedbackPaths[~tonic+7] = [\third, \fifth, \eighth] // 120/79f = tonic + 7.237318169176989 semitone
+~feedbackPaths[~tonic+7] = [\half, \sixth] // 3/2f = tonic + 7.019550008653875 semitone
+//~feedbackPaths[~tonic+6] = [\third, \fifth, \sixth] // 10/7f = tonic + 6.174878073957099 semitone
+~feedbackPaths[~tonic+6] = [\half, \fifth] // 10/7f = tonic + 6.174878073957099 semitone
+//~feedbackPaths[~tonic+6] = [\third, \quarter, \eighth] // 24/17f = tonic + 5.969995913649799 semitone
+//~feedbackPaths[~tonic+5] = [\quarter, \fifth, \sixth, \eighth] // 120/89f = tonic + 5.173885975705449 semitone
+//~feedbackPaths[~tonic+5] = [\third, \quarter, \sixth] // 4/3f = tonic + 4.980449991346124 semitone
+~feedbackPaths[~tonic+5] = [\half, \quarter] // 4/3f = tonic + 4.980449991346124 semitone
+//~feedbackPaths[~tonic+4] = [\third, \quarter, \fifth] // 60/47f = tonic + 4.227620927170575 semitone
+~feedbackPaths[~tonic+4] = [\half, \sixth, \eighth] // 24/19f = tonic + 4.04441984733085 semitone
+//~feedbackPaths[~tonic+3] = [\half, \fifth, \eighth] // 40/33f = tonic + 3.3304077063469073 semitone
+//~feedbackPaths[~tonic+3] = [\third, \fifth, \sixth, \eighth] // 40/33f = tonic + 3.3304077063469073 semitone
+~feedbackPaths[~tonic+3] = [\half, \third] // 6/5f = tonic + 3.1564128700055254 semitone
+//~feedbackPaths[~tonic+2] = [\half, \fifth, \sixth] // 15/13f = tonic + 2.4774105296091147 semitone
+~feedbackPaths[~tonic+2] = [\half, \quarter, \eighth] // 8/7f = tonic + 2.31174093530875 semitone
+//~feedbackPaths[~tonic+2] = [\third, \quarter, \sixth, \eighth] // 8/7f = tonic + 2.31174093530875 semitone
+//~feedbackPaths[~tonic+2] = [\third, \quarter, \fifth, \eighth] // 120/109f = tonic + 1.6644752499791071 semitone
+//~feedbackPaths[~tonic+2] = [\half, \quarter, \sixth] // 12/11f = tonic + 1.5063705850063096 semitone
+//~feedbackPaths[~tonic+1] = [\third, \quarter, \fifth, \sixth] // 20/19f = tonic + 0.8880069773253213 semitone
+~feedbackPaths[~tonic+1] = [\half, \quarter, \fifth] // 20/19f = tonic + 0.8880069773253213 semitone
+//~feedbackPaths[~tonic+1] = [\half, \third, \eighth] // 24/23f = tonic + 0.7368065359697193 semitone
+//~feedbackPaths[~tonic+0] = [\half, \fifth, \sixth, \eighth] // 120/119f = tonic + 0.14487398760689965 semitone
+~feedbackPaths[~tonic+0] = [\half, \third, \sixth] // 1/1f = tonic + 0.0 semitone
+//~feedbackPaths[~tonic-1] = [\half, \third, \fifth] // 30/31f = tonic + -0.5676685773402816 semitone
+~feedbackPaths[~tonic-1] = [\half, \quarter, \sixth, \eighth] // 24/25f = tonic + -0.7067242686428228 semitone
+//~feedbackPaths[~tonic-1] = [\third, \quarter, \fifth, \sixth, \eighth] // 40/43f = tonic + -1.2520399177768273 semitone
+//~feedbackPaths[~tonic-1] = [\half, \quarter, \fifth, \eighth] // 40/43f = tonic + -1.2520399177768273 semitone
+//~feedbackPaths[~tonic-1] = [\half, \third, \quarter] // 12/13f = tonic + -1.3857266090392308 semitone
+//~feedbackPaths[~tonic-2] = [\half, \quarter, \fifth, \sixth] // 60/67f = tonic + -1.9103831381910463 semitone
+~feedbackPaths[~tonic-2] = [\half, \third, \sixth, \eighth] // 8/9f = tonic + -2.0391000173077494 semitone
+//~feedbackPaths[~tonic-3] = [\half, \third, \fifth, \eighth] // 120/139f = tonic + -2.544605725379868 semitone
+~feedbackPaths[~tonic-3] = [\half, \third, \fifth, \sixth] // 5/6f = tonic + -3.1564128700055254 semitone
+//~feedbackPaths[~tonic-3] = [\half, \third, \quarter, \eighth] // 24/29f = tonic + -3.2762219328769895 semitone
+//~feedbackPaths[~tonic-4] = [\half, \quarter, \fifth, \sixth, \eighth] // 120/149f = tonic + -3.7473350982437177 semitone
+~feedbackPaths[~tonic-4] = [\half, \third, \quarter, \sixth] // 4/5f = tonic + -3.8631371386483475 semitone
+//~feedbackPaths[~tonic-4] = [\half, \third, \quarter, \fifth] // 60/77f = tonic + -4.318751341036596 semitone
+~feedbackPaths[~tonic-5] = [\half, \third, \fifth, \sixth, \eighth] // 40/53f = tonic + -4.871908316110041 semitone
+~feedbackPaths[~tonic-6] = [\half, \third, \quarter, \sixth, \eighth] // 8/11f = tonic + -5.513179423647567 semitone
+//~feedbackPaths[~tonic-6] = [\half, \third, \quarter, \fifth, \eighth] // 120/169f = tonic + -5.9278660880839915 semitone
+~feedbackPaths[~tonic-7] = [\half, \third, \quarter, \fifth, \sixth] // 20/29f = tonic + -6.432634802882516 semitone
+~feedbackPaths[~tonic-8] = [\half, \third, \quarter, \fifth, \sixth, \eighth] // 40/63f = tonic + -7.8642219433506515 semitone
 */
 (20/9).ratiomidi.mod(12)
