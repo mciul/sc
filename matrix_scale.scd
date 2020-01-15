@@ -105,7 +105,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 ~openGates = {
 	arg midi, velocity;
 	var amp;
-	amp = velocity.linlin(0,127,-6,-120).dbamp.neg + 1;
+	amp = velocity.linlin(0,127,-18,-120).dbamp.neg + 2;
 	"openGates(".post;
 	midi.post;
 	", ".post;
@@ -176,10 +176,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 		);
 	});
 };
-)
 
-s.quit;
-(
 ServerBoot.add(~makeBusses);
 ServerQuit.add(~cleanup);
 "not waiting".postln;
@@ -193,8 +190,8 @@ s.waitForBoot({
 		var sig;
 		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
 		sig = In.ar(in).madd(gain).softclip;
-		//sig = LPF.ar(sig, MouseX.kr(500,15000,1).poll(0.2), MouseY.kr(0.9,1.1,1).poll(0.4));
-		sig = DelayL.ar(sig, maxdelaytime, (delaytime.reciprocal - latency), amp);
+		sig = LPF.ar(sig, 2925);
+		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp);
 		sig = LeakDC.ar(sig);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
@@ -203,7 +200,8 @@ s.waitForBoot({
 	SynthDef(\feedbackGate, {
 		arg in=0, out=0, amp=0.3, gate=0;
 		var sig;
-		sig = InFeedback.ar(in) * EnvGen.ar(Env.adsr(sustainLevel:1, releaseTime:0.2), gate, doneAction:2);
+		sig = InFeedback.ar(in) * EnvGen.ar(Env.adsr(decayTime: 0.1, sustainLevel:0.9, releaseTime:0.3), gate, doneAction:2);
+		[in, out, Amplitude.ar(sig)].poll(1);
 		Out.ar(out, sig * amp);
 	}).add;
 
