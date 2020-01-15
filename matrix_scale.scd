@@ -1,3 +1,4 @@
+
 (
 ~tonic = 76-36;
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is the max at default control rate
@@ -38,12 +39,37 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 ~feedbackPaths[~tonic-7] = [\half, \third, \quarter, \fifth, \sixth]; // 20/29 f = tonic -6.432634802882516 semitone
 ~feedbackPaths[~tonic-8] = [\half, \third, \quarter, \fifth, \sixth, \eighth]; // 40/63 f = tonic -7.8642219433506515 semitone
 
+~feedbackLinks = ~feedbackPaths.collect({
+	arg origins, notenum;
+	var outs;
+	outs = origins.rotate(-1);
+	origins.collect({
+		arg in, i;
+		[in, outs[i]]
+	});
+});
+
+~gateSynths = Dictionary.new();
+~delayKeys.do({
+	arg in;
+	~gateSynths.add(in -> Dictionary.new());
+});
+
 ~out = 0;
 ~makeBusses = {
 	~bus = Dictionary.new;
 	~bus.add(\feedback -> Bus.audio(s, ~delayKeys.size));
 	~bus.add(\res -> Bus.audio(s,~delayKeys.size));
 	~bus.add(\mixOut -> Bus.audio(s, ~delayKeys.size));
+	~busAt = Dictionary.new();
+	~bus.keys.do({
+		arg busKey;
+		~busAt.add(busKey -> Dictionary.new());
+		~delayKeys.do({
+			arg delayKey, i;
+			~busAt[busKey].add(delayKey -> i);
+		});
+	});
 };
 
 ~cleanup = {
@@ -78,12 +104,39 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 
 ~openGates = {
 	arg midi, velocity;
-	// TODO
+	var amp;
+	amp = velocity.linlin(0,127,-6,-120).dbamp.neg + 1;
+	"openGates(".post;
+	midi.post;
+	", ".post;
+	velocity.post;
+	") - ".post;
+	~feedbackPaths[midi].postln;
+	~feedbackLinks[midi].do ({
+		arg in_out;
+		var in, out;
+		# in, out = in_out;
+		~gateSynths[in][out].set(\gate, 0);
+		~gateSynths[in][out] = Synth.new(\feedbackGate,
+			[
+				\in, ~busAt[\feedback][in],
+				\out, ~busAt[\res][out],
+				\amp, amp,
+				\gate, 1
+			]
+		);
+	});
 };
 
 ~closeGates = {
 	arg midi;
-	// TODO
+	~feedbackLinks[midi].do({
+		arg in_out;
+		var in, out;
+		# in, out = in_out;
+		~gateSynths[in][out].set(\gate, 0);
+		~gateSynths[in][out] = nil;
+	});
 };
 
 ~controlGates = {
@@ -177,8 +230,8 @@ s.waitForBoot({
 ~delaySynths.do({ arg s; s.free});
 y={Out.ar(~bus[\feedback].index, SinOsc.ar(440,0,0.1));}.play;
 y.free
-x=Synth.new(\feedbackGate, [\amp, 0.1, \gate, 1, \in: ~bus[\feedback].index, \out: ~bus[\res].index]);
-x.set(\amp, 0.9999);
+x=Synth.new(\feedbackGate, [\amp, 1.2, \gate, 1, \in: ~bus[\feedback].index, \out: ~bus[\res].index]);
+x.set(\amp, 0.99999);
 x.set(\gate, 0);
 y={Out.ar(~bus[\res].index+5, SinOsc.ar(mul:0.1))}.play;
 y.free;
