@@ -79,6 +79,39 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 	ServerQuit.removeAll;
 };
 
+~loadSynthDefs = {
+	//synthdefs
+	SynthDef(\distortedResonator, {
+		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, gain=1, amp=1;
+		var sig;
+		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
+		sig = In.ar(in).madd(gain).softclip;
+		sig = LPF.ar(sig, 10000);
+		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp);
+		sig = LeakDC.ar(sig);
+		Out.ar(feedback_out, sig);
+		Out.ar(out, sig);
+	}).add;
+
+	SynthDef(\feedbackGate, {
+		arg in=0, out=0, amp=0.3, gate=0;
+		var sig, sustain;
+		sustain = 0.7;
+		sig = InFeedback.ar(in) * EnvGen.ar(Env.adsr(decayTime: 0.2, sustainLevel:sustain, releaseTime:0.3), gate, doneAction:2);
+		Out.ar(out, sig * amp * amp.linlin(0,1,0,4/sustain));
+	}).add;
+
+	SynthDef(\noiseFloor, {
+		arg out=0, amp=0.001;
+		Out.ar(out, BrownNoise.ar(amp!~delayKeys.size));
+	}).add;
+
+	SynthDef(\mixOut, {
+		arg in, out;
+		Out.ar(out, Splay.ar(In.ar(in, ~delayKeys.size)));
+	}).add;
+};
+
 ~makeNodes = {
 	s.bind({
 		~group = Dictionary.new;
@@ -105,7 +138,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 ~openGates = {
 	arg midi, velocity;
 	var amp;
-	amp = velocity.linlin(0,127,-18,-120).dbamp.neg + 2;
+	amp = (velocity.linlin(0,127,0,-60).dbamp.neg + 1).postln;
 	"openGates(".post;
 	midi.post;
 	", ".post;
@@ -176,7 +209,13 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 		);
 	});
 };
-
+)
+s.quit;
+(
+~loadSynthDefs.value();
+s.freeAll;
+)
+(
 ServerBoot.add(~makeBusses);
 ServerQuit.add(~cleanup);
 "not waiting".postln;
@@ -184,37 +223,7 @@ s.waitForBoot({
 	"waitForBoot".postln;
 	s.sync;
 
-	//synthdefs
-	SynthDef(\distortedResonator, {
-		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, gain=1, amp=1;
-		var sig;
-		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
-		sig = In.ar(in).madd(gain).softclip;
-		sig = LPF.ar(sig, 2925);
-		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp);
-		sig = LeakDC.ar(sig);
-		Out.ar(feedback_out, sig);
-		Out.ar(out, sig);
-	}).add;
-
-	SynthDef(\feedbackGate, {
-		arg in=0, out=0, amp=0.3, gate=0;
-		var sig;
-		sig = InFeedback.ar(in) * EnvGen.ar(Env.adsr(decayTime: 0.1, sustainLevel:0.9, releaseTime:0.3), gate, doneAction:2);
-		[in, out, Amplitude.ar(sig)].poll(1);
-		Out.ar(out, sig * amp);
-	}).add;
-
-	SynthDef(\noiseFloor, {
-		arg out=0, amp=0.001;
-		Out.ar(out, BrownNoise.ar(amp!~delayKeys.size));
-	}).add;
-
-	SynthDef(\mixOut, {
-		arg in, out;
-		Out.ar(out, Splay.ar(In.ar(in, ~delayKeys.size)));
-	}).add;
-
+	~loadSynthDefs.value();
 	// remaining functions
 	ServerTree.add(~makeNodes);
 	ServerTree.add(~mapKeyboard);
