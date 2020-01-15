@@ -108,7 +108,11 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 
 	SynthDef(\mixOut, {
 		arg in, out;
-		Out.ar(out, Splay.ar(In.ar(in, ~delayKeys.size)));
+		var sig;
+		sig = In.ar(in, ~delayKeys.size);
+		sig = Splay.ar(sig);
+		sig = Limiter.ar(sig);
+		Out.ar(out, sig);
 	}).add;
 };
 
