@@ -171,7 +171,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 	arg in_out;
 	var in, out, velocity;
 	# in, out = in_out;
-	velocity = ~usedLinks[in_out].collect({
+	velocity = ~linkUsers[in_out].collect({
 		arg midi;
 		~currentVelocities[midi]
 	}).maxItem;
@@ -237,6 +237,7 @@ s.quit;
 ~loadSynthDefs.value();
 s.freeAll;
 )
+
 (
 ServerBoot.add(~makeBusses);
 ServerQuit.add(~cleanup);
