@@ -1,7 +1,14 @@
-(-1..5).collect({ arg n; (n-3).abs }).maxItem
 (
-~tonic = 76-36;
-f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is the max at default control rate
+f= {
+	arg velocity=0;
+	5.do({ arg n; (n + velocity).postln});
+};
+f.value(12);
+)
+(
+~highestNote = 76 - 4; // 76 is the highest note available with default control raite
+~tonic = ~highestNote-36;
+f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~delayTimes = Dictionary.newFrom(
 	[\eighth, 1/8, \sixth, 1/6, \fifth, 1/5, \quarter, 1/4, \third, 1/3, \half, 1/2] * f.reciprocal
 );
@@ -170,33 +177,41 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 	" - ".post;
 	~feedbackPaths[midi].postln;
 	~currentVelocities[midi] = velocity;
-	~feedbackLinks[midi].do(~updateLink);
+	~feedbackLinks[midi].do({ arg link; ~updateLink.value(link, (velocity > 0))});
 };
 
 ~updateLink = {
-	arg in_out;
+	arg in_out, onset;
 	var in, out, velocity;
 	# in, out = in_out;
 	velocity = ~linkUsers[in_out].collect({
 		arg midi;
 		~currentVelocities[midi]
 	}).maxItem;
-	~gateSynths[in][out].set(\gate, 0);
 	if (velocity == 0,
 		{
+			~gateSynths[in][out].set(\gate, 0);
 			~gateSynths[in][out] = nil;
 		},
 		{
 			var amp;
 			amp = (velocity.linlin(0,127,0,1));
-			~gateSynths[in][out] = Synth.new(\feedbackGate,
-				[
-					\in, ~busAt[\feedback][in],
-					\out, ~busAt[\res][out],
-					\amp, amp,
-					\gate, 1
-				],
-				~group[\feedback]
+			if (onset,
+				{
+					~gateSynths[in][out].set(\gate, 0);
+					~gateSynths[in][out] = Synth.new(\feedbackGate,
+						[
+							\in, ~busAt[\feedback][in],
+							\out, ~busAt[\res][out],
+							\amp, amp,
+							\gate, 1
+						],
+						~group[\feedback]
+					);
+				},
+				{
+					~gateSynths[in][out].set(\amp, amp);
+				}
 			);
 		}
 	);
