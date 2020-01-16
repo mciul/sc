@@ -1,5 +1,4 @@
-~feedbackLinks[36].matchItem([\half, \third])
-~feedbackLinks[36][0] == [\half, \third]
+(-1..5).collect({ arg n; (n-3).abs }).maxItem
 (
 ~tonic = 76-36;
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is the max at default control rate
@@ -66,6 +65,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 	});
 });
 
+~currentVelocities = Array.fill(~feedbackLinks.size, 0);
 ~gateSynths = Dictionary.new();
 ~delayKeys.do({
 	arg in;
@@ -161,42 +161,39 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 	});
 };
 
-~openGates = {
-	arg midi, velocity;
-	var amp;
-	amp = (velocity.linlin(0,127,0,1)).postln;
-	"openGates(".post;
-	midi.post;
-	", ".post;
-	velocity.post;
-	") - ".post;
-	~feedbackPaths[midi].postln;
-	~feedbackLinks[midi].do ({
-		arg in_out;
-		var in, out;
-		# in, out = in_out;
-		~gateSynths[in][out].set(\gate, 0);
-		~gateSynths[in][out] = Synth.new(\feedbackGate,
-			[
-				\in, ~busAt[\feedback][in],
-				\out, ~busAt[\res][out],
-				\amp, amp,
-				\gate, 1
-			],
-			~group[\feedback]
-		);
-	});
+~updateLinks = {
+	arg midi, velocity=0;
+	~currentVelocities[midi] = velocity;
+	~feedbackLinks[midi].do(~updateLink);
 };
 
-~closeGates = {
-	arg midi;
-	~feedbackLinks[midi].do({
-		arg in_out;
-		var in, out;
-		# in, out = in_out;
-		~gateSynths[in][out].set(\gate, 0);
-		~gateSynths[in][out] = nil;
-	});
+~updateLink = {
+	arg in_out;
+	var in, out, velocity;
+	# in, out = in_out;
+	velocity = ~usedLinks[in_out].collect({
+		arg midi;
+		~currentVelocities[midi]
+	}).maxItem;
+	~gateSynths[in][out].set(\gate, 0);
+	if (velocity == 0,
+		{
+			~gateSynths[in][out] = nil;
+		},
+		{
+			var amp;
+			amp = (velocity.linlin(0,127,0,1)).postln;
+			~gateSynths[in][out] = Synth.new(\feedbackGate,
+				[
+					\in, ~busAt[\feedback][in],
+					\out, ~busAt[\res][out],
+					\amp, amp,
+					\gate, 1
+				],
+				~group[\feedback]
+			);
+		}
+	);
 };
 
 ~controlGates = {
@@ -209,13 +206,12 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 
 	MIDIdef.noteOn(\noteOn, {
 		arg val, num, chan, src;
-		~closeGates.value(num);
-		~openGates.value(num, val);
+		~updateLinks.value(num, val);
 	});
 
 	MIDIdef.noteOff(\noteOff, {
 		arg val, num, chan, src;
-		~closeGates.value(num);
+		~updateLinks.value(num, 0);
 	});
 
 	MIDIdef.bend(\bend, {
