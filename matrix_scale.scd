@@ -110,6 +110,18 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		Out.ar(out, sig);
 	}).add;
 
+	SynthDef(\clippedResonator, {
+		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, gain=1, amp=1;
+		var sig;
+		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
+		sig = In.ar(in).madd(gain);
+		sig = LPF.ar(sig, 10000);
+		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp).clip;
+		sig = LeakDC.ar(sig);
+		Out.ar(feedback_out, sig);
+		Out.ar(out, sig);
+	}).add;
+
 	SynthDef(\feedbackGate, {
 		arg in=0, out=0, amp=0.3, gate=0;
 		var sig, env, sustain;
