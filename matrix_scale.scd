@@ -163,6 +163,12 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 
 ~updateLinks = {
 	arg midi, velocity=0;
+	"note ".post;
+	midi.post;
+	", velocity ".post;
+	velocity.post;
+	" - ".post;
+	~feedbackPaths[midi].postln;
 	~currentVelocities[midi] = velocity;
 	~feedbackLinks[midi].do(~updateLink);
 };
@@ -182,7 +188,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary, but this is
 		},
 		{
 			var amp;
-			amp = (velocity.linlin(0,127,0,1)).postln;
+			amp = (velocity.linlin(0,127,0,1));
 			~gateSynths[in][out] = Synth.new(\feedbackGate,
 				[
 					\in, ~busAt[\feedback][in],
