@@ -1,11 +1,4 @@
 (
-f= {
-	arg velocity=0;
-	5.do({ arg n; (n + velocity).postln});
-};
-f.value(12);
-)
-(
 ~highestNote = 76 - 4; // 76 is the highest note available with default control raite
 ~tonic = ~highestNote-36;
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
@@ -278,82 +271,8 @@ s.waitForBoot({
 });
 )
 
-~bus
-~group
-~noiseSynth.set(\amp, 0.1);
-~delaySynths.do({ arg s; s.free});
-y={Out.ar(~bus[\feedback].index, SinOsc.ar(440,0,0.1));}.play;
-y.free
-x=Synth.new(\feedbackGate, [\amp, 1.2, \gate, 1, \in: ~bus[\feedback].index, \out: ~bus[\res].index]);
-x.set(\amp, 0.99999);
-x.set(\gate, 0);
-y={Out.ar(~bus[\res].index+5, SinOsc.ar(mul:0.1))}.play;
-y.free;
-~outSynth.free
-~outSynth.set(\out, 1);
-~outSynth = Synth(\mixOut, [\out, ~out, \in, ~bus[\res].index], ~group[\mixOut]);
-x= Synth.new(\noiseFloor, [\out, 0, \amp, 0.1]);
-x.free;
-
-s.quit
-ServerBoot.add(~makeBusses);
-ServerQuit.add(~cleanup);
-s.boot
-
-
 /*
 (44100/64).cpsmidi ~= 76.77
-
-[(1/4), (1/8)] -> 3/8
-[(1/4), (1/6)] -> 5/12
-[(1/4), (1/5)] -> 9/20
-[(1/3), (1/6)] -> 1/2
-[(1/3), (1/5)] -> 8/15
-[(1/3), (1/6), (1/8)] -> 5/8
-[(1/2), (1/8)] -> 5/8
-[(1/2), (1/6)] -> 2/3
-[(1/2), (1/4)] -> 3/4
-[(1/3), (1/4), (1/6)] -> 3/4
-[(1/2), (1/3)] -> 5/6
-[(1/2), (1/3), (1/6)] -> 1/1
-[(1/2), (1/3), (1/6), (1/8)] -> 9/8
-[(1/2), (1/3), (1/5), (1/6)] -> 6/5
-[(1/2), (1/3), (1/4), (1/6)] -> 5/4
-
-longer version:
-(1/8).reciprocal.ratiomidi // = +36 semitones
-(1/6).reciprocal.ratiomidi // = +31.019550008654 semitones
-(1/4).reciprocal.ratiomidi // = +24 semitones
-(7/24).reciprocal.ratiomidi.mod(12) // 1/6 + 1/8 = + (21.331290943962625) semitones
-(13/40).reciprocal.ratiomidi.mod(12) // 1/5 + 1/8 = + (19.457860520955244) semitones
-(1/3).reciprocal.ratiomidi // = +19.019550008654 semitones
-(11/30).reciprocal.ratiomidi.mod(12) // 1/5 + 1/6 = + (17.36950772365466) semitones
-(3/8).reciprocal.ratiomidi.mod(12) // 1/4 + 1/8 = + (16.980449991346124) semitones
-(5/12).reciprocal.ratiomidi.mod(12) // 1/4 + 1/6 = + (15.156412870005525) semitones
-(9/20).reciprocal.ratiomidi.mod(12) // 1/4 + 1/5 = + (13.8240371213406) semitones
-(11/24).reciprocal.ratiomidi.mod(12) // 1/3 + 1/8 = + (13.50637058500631) semitones
-(1/2).reciprocal.ratiomidi.mod(12) // 1/2 = + (12.0) semitones
-(8/15).reciprocal.ratiomidi.mod(12) // 1/3 + 1/5 = + (10.88268714730222) semitones
-(13/24).reciprocal.ratiomidi.mod(12) // 1/4 + 1/6 + 1/8 = + (10.614273390960768) semitones
-(7/12).reciprocal.ratiomidi.mod(12) // 1/3 + 1/4 = + (9.331290943962623) semitones
-(5/8).reciprocal.ratiomidi.mod(12) // 1/2 + 1/8 = + (8.136862861351654) semitones
-(2/3).reciprocal.ratiomidi.mod(12) // 1/2 + 1/6 = + (7.019550008653875) semitones
-(7/10).reciprocal.ratiomidi.mod(12) // 1/3 + 1/5 + 1/6 = + (6.174878073957099) semitones
-(7/10).reciprocal.ratiomidi.mod(12) // 1/2 + 1/5 = + (6.174878073957099) semitones
-(3/4).reciprocal.ratiomidi.mod(12) // 1/2 + 1/4 = + (4.980449991346124) semitones
-(19/24).reciprocal.ratiomidi.mod(12) // 1/2 + 1/6 + 1/8 = + (4.04441984733085) semitones
-(5/6).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 = + (3.1564128700055254) semitones
-(7/8).reciprocal.ratiomidi.mod(12) // 1/2 + 1/4 + 1/8 = + (2.31174093530875) semitones
-(19/20).reciprocal.ratiomidi.mod(12) // 1/2 + 1/4 + 1/5 = + (0.8880069773253213) semitones
-(1/1).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/6 = + (0.0) semitones
-(13/12).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/4 = + (-1.3857266090392308) semitones
-(9/8).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/6 + 1/8 = + (-2.0391000173077494) semitones
-(6/5).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/5 + 1/6 = + (-3.1564128700055254) semitones
-(5/4).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/4 + 1/6 = + (-3.8631371386483475) semitones
-(53/40).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/5 + 1/6 + 1/8 = + (-4.871908316110041) semitones
-(11/8).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/4 + 1/6 + 1/8 = + (-5.513179423647567) semitones
-(29/20).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/4 + 1/5 + 1/6 = + (-6.432634802882516) semitones
-(63/40).reciprocal.ratiomidi.mod(12) // 1/2 + 1/3 + 1/4 + 1/5 + 1/6 + 1/8 = + (-7.8642219433506515) semitones
 
 full version:
 ~feedbackPaths[~tonic+36] = [\eighth] // 8/1f = tonic + 36.0 semitone
