@@ -111,13 +111,14 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	}).add;
 
 	SynthDef(\clippedResonator, {
-		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, gain=1, amp=1;
-		var sig;
+		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, decaytime=10;
+		var sig, amp;
+		amp = (-60 * delaytime/decaytime).dbamp;
 		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
-		sig = In.ar(in).madd(gain);
+		sig = In.ar(in);
 		sig = LPF.ar(sig, 10000);
 		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp).clip;
-		sig = LeakDC.ar(sig);
+		//sig = LeakDC.ar(sig);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
 	}).add;
@@ -135,6 +136,24 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		Out.ar(out, sig);
 	}).add;
 
+	SynthDef(\feedbackPluck, {
+		arg in=0, out=0, amp=0.3, gate=0, pathcount=1;
+		var pluck, sig, env, attenuate;
+		pluck = BrownNoise.ar(EnvGen.ar(Env.triangle((0.25/f), amp)));
+		env = EnvGen.ar(
+			Env.asr(attackTime:0, releaseTime:0.3),
+			gate,
+			doneAction:2
+		);
+		// this doesn't help when the paths are not identical
+		// but there is a shared node between them
+		//
+		// Using a LeakDC doesn't help either - it kills sustain completely
+		attenuate = pathcount.reciprocal;
+		sig = InFeedback.ar(in) * attenuate * env + pluck;
+		Out.ar(out, sig);
+	}).add;
+
 	SynthDef(\noiseFloor, {
 		arg out=0, amp=0.001;
 		Out.ar(out, BrownNoise.ar(amp!~delayKeys.size));
@@ -144,7 +163,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		arg in, out;
 		var sig;
 		sig = In.ar(in, ~delayKeys.size);
-		sig = Splay.ar(sig);
+		sig = Splay.ar(LeakDC.ar(sig));
 		sig = Limiter.ar(sig);
 		Out.ar(out, sig);
 	}).add;
@@ -158,7 +177,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		~group.add(\mixOut -> Group.after(~group[\res]));
 		~delaySynths = ~delayKeys.collect({
 			arg key;
-			Synth.new(\distortedResonator,
+			Synth.new(\clippedResonator,
 				[
 					\in, ~busAt[\res][key],
 					\feedback_out, ~busAt[\feedback][key],
@@ -185,30 +204,56 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	~feedbackLinks[midi].do({ arg link; ~updateLink.value(link, (velocity > 0))});
 };
 
+~linkVelocities = {
+	arg in_out;
+	~linkUsers[in_out].select({
+		arg midi;
+		~currentVelocities[midi] > 0;
+	});
+};
+
 ~updateLink = {
 	arg in_out, onset;
-	var in, out, velocity;
+	var in, out, velocities;
+	"updateLink(".post;
+	in_out.post;
+	", ".post;
+	onset.post;
+	")".postln;
 	# in, out = in_out;
-	velocity = ~linkUsers[in_out].collect({
-		arg midi;
-		~currentVelocities[midi]
-	}).maxItem;
-	if (velocity == 0,
+	velocities = ~linkVelocities.value(in_out);
+	"velocities=".post;
+	velocities.postln;
+	if (velocities.size == 0,
 		{
 			~gateSynths[in][out].set(\gate, 0);
 			~gateSynths[in][out] = nil;
 		},
 		{
-			var amp;
-			amp = (velocity.linlin(0,127,0,1));
+			var amp, sharedpaths;
+			sharedpaths = ~delayKeys.collect({
+				arg other_in;
+				[other_in, out];
+			}).select({
+				arg other_in_out;
+				"link velocities for shared path ".post;
+				other_in_out.postln;
+				": ".post;
+				~linkVelocities.value(other_in_out).postln;
+				~linkVelocities.value(other_in_out).size > 0;
+			});
+			"shared paths=".post;
+			sharedpaths.postln;
+			amp = (velocities.maxItem.linlin(0,127,0,1));
 			if (onset,
 				{
 					~gateSynths[in][out].set(\gate, 0);
-					~gateSynths[in][out] = Synth.new(\feedbackGate,
+					~gateSynths[in][out] = Synth.new(\feedbackPluck,
 						[
 							\in, ~busAt[\feedback][in],
 							\out, ~busAt[\res][out],
 							\amp, amp,
+							\pathcount, sharedpaths.size,
 							\gate, 1
 						],
 						~group[\feedback]
@@ -218,6 +263,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 					~gateSynths[in][out].set(\amp, amp);
 				}
 			);
+			~gateSynths.do({ arg synths; synths[out].set(\pathcount, sharedpaths.size)});
 		}
 	);
 };
@@ -258,12 +304,11 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	});
 };
 )
-s.quit;
 (
-~loadSynthDefs.value();
+~ loadSynthDefs.value();
 s.freeAll;
 )
-
+s.quit;
 (
 ServerBoot.add(~makeBusses);
 ServerQuit.add(~cleanup);
