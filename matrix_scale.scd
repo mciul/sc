@@ -1,10 +1,10 @@
 (
-~highestNote = 76 - 4; // 76 is the highest note available with default control raite
+~highestNote = 76 - 2; // 76 is the highest note available with default control raite
 ~tonic = ~highestNote-36;
-//~resonatorSynth = \distortedResonator;
-~resonatorSynth = \clippedResonator;
-//~feedbackSynth = \feedbackGate;
-~feedbackSynth = \feedbackPluck;
+~resonatorSynth = \distortedResonator;
+//~resonatorSynth = \clippedResonator;
+~feedbackSynth = \feedbackGate;
+//~feedbackSynth = \feedbackPluck;
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~delayTimes = Dictionary.newFrom(
 	[\eighth, 1/8, \sixth, 1/6, \fifth, 1/5, \quarter, 1/4, \third, 1/3, \half, 1/2] * f.reciprocal
@@ -109,7 +109,8 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		sig = In.ar(in).madd(gain).softclip;
 		sig = LPF.ar(sig, 10000);
 		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp);
-		sig = LeakDC.ar(sig);
+		//sig = LeakDC.ar(sig, 0.9995);
+		sig = HPF.ar(sig, 10);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
 	}).add;
