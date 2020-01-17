@@ -1,6 +1,10 @@
 (
 ~highestNote = 76 - 4; // 76 is the highest note available with default control raite
 ~tonic = ~highestNote-36;
+//~resonatorSynth = \distortedResonator;
+~resonatorSynth = \clippedResonator;
+//~feedbackSynth = \feedbackGate;
+~feedbackSynth = \feedbackPluck;
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~delayTimes = Dictionary.newFrom(
 	[\eighth, 1/8, \sixth, 1/6, \fifth, 1/5, \quarter, 1/4, \third, 1/3, \half, 1/2] * f.reciprocal
@@ -138,8 +142,9 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 	SynthDef(\feedbackPluck, {
 		arg in=0, out=0, amp=0.3, gate=0, pathcount=1;
-		var pluck, sig, env, attenuate;
-		pluck = BrownNoise.ar(EnvGen.ar(Env.triangle((0.25/f), amp)));
+		var pluckEnv, pluck, sig, env, attenuate;
+		pluckEnv = EnvGen.ar(Env.triangle((0.25/f), amp.linlin(0,1,0.1,1)));
+		pluck = BrownNoise.ar(pluckEnv);
 		env = EnvGen.ar(
 			Env.asr(attackTime:0, releaseTime:0.3),
 			gate,
@@ -177,7 +182,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		~group.add(\mixOut -> Group.after(~group[\res]));
 		~delaySynths = ~delayKeys.collect({
 			arg key;
-			Synth.new(\clippedResonator,
+			Synth.new(~resonatorSynth,
 				[
 					\in, ~busAt[\res][key],
 					\feedback_out, ~busAt[\feedback][key],
@@ -215,15 +220,8 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~updateLink = {
 	arg in_out, onset;
 	var in, out, velocities;
-	"updateLink(".post;
-	in_out.post;
-	", ".post;
-	onset.post;
-	")".postln;
 	# in, out = in_out;
 	velocities = ~linkVelocities.value(in_out);
-	"velocities=".post;
-	velocities.postln;
 	if (velocities.size == 0,
 		{
 			~gateSynths[in][out].set(\gate, 0);
@@ -236,19 +234,13 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 				[other_in, out];
 			}).select({
 				arg other_in_out;
-				"link velocities for shared path ".post;
-				other_in_out.postln;
-				": ".post;
-				~linkVelocities.value(other_in_out).postln;
 				~linkVelocities.value(other_in_out).size > 0;
 			});
-			"shared paths=".post;
-			sharedpaths.postln;
 			amp = (velocities.maxItem.linlin(0,127,0,1));
 			if (onset,
 				{
 					~gateSynths[in][out].set(\gate, 0);
-					~gateSynths[in][out] = Synth.new(\feedbackPluck,
+					~gateSynths[in][out] = Synth.new(~feedbackSynth,
 						[
 							\in, ~busAt[\feedback][in],
 							\out, ~busAt[\res][out],
@@ -305,7 +297,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 };
 )
 (
-~ loadSynthDefs.value();
+~loadSynthDefs.value();
 s.freeAll;
 )
 s.quit;
