@@ -1,10 +1,10 @@
 (
-~highestNote = 76 - 2; // 76 is the highest note available with default control raite
+~highestNote = 76 - 4; // 76 is the highest note available with default control raite
 ~tonic = ~highestNote-36;
-~resonatorSynth = \distortedResonator;
-//~resonatorSynth = \clippedResonator;
-~feedbackSynth = \feedbackGate;
-//~feedbackSynth = \feedbackPluck;
+//~resonatorSynth = \distortedResonator;
+~resonatorSynth = \clippedResonator;
+//~feedbackSynth = \feedbackGate;
+~feedbackSynth = \feedbackPluck;
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~delayTimes = Dictionary.newFrom(
 	[\eighth, 1/8, \sixth, 1/6, \fifth, 1/5, \quarter, 1/4, \third, 1/3, \half, 1/2] * f.reciprocal
@@ -122,7 +122,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
 		sig = In.ar(in);
 		sig = LPF.ar(sig, 10000);
-		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp).clip;
+		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp).fold(-1,1);
 		//sig = LeakDC.ar(sig);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
@@ -151,11 +151,11 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 			gate,
 			doneAction:2
 		);
-		// this doesn't help when the paths are not identical
-		// but there is a shared node between them
+		// the goal of attenuate is to keep chords from blowing up
+		// but it's not consistent- I'm not sure if there's a formula for predicting
+		// the correct value
 		//
-		// Using a LeakDC doesn't help either - it kills sustain completely
-		attenuate = pathcount.reciprocal;
+		attenuate = pathcount.sqrt.reciprocal;
 		sig = InFeedback.ar(in) * attenuate * env + pluck;
 		Out.ar(out, sig);
 	}).add;
