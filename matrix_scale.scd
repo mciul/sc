@@ -212,32 +212,33 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 ~linkVelocities = {
 	arg in_out;
-	~linkUsers[in_out].select({
-		arg midi;
-		~currentVelocities[midi] > 0;
-	});
+	~linkUsers[in_out].collect(~currentVelocities[_]);
+};
+
+~pathUsed = {
+	arg path;
+	~linkVelocities.value(path).any(_ > 0);
 };
 
 ~updateLink = {
 	arg in_out, onset;
-	var in, out, velocities;
+	var in, out, velocities, velocity;
 	# in, out = in_out;
 	velocities = ~linkVelocities.value(in_out);
-	if (velocities.size == 0,
+	velocity = velocities.maxItem;
+	if (velocity == 0,
 		{
 			~gateSynths[in][out].set(\gate, 0);
 			~gateSynths[in][out] = nil;
 		},
 		{
-			var amp, sharedpaths;
-			sharedpaths = ~delayKeys.collect({
-				arg other_in;
-				[other_in, out];
-			}).select({
-				arg other_in_out;
-				~linkVelocities.value(other_in_out).size > 0;
-			});
-			amp = (velocities.maxItem.linlin(0,127,0,1));
+			var amp, pathcount;
+			pathcount = ~delayKeys.collect(
+				[_, out];
+			).count(
+				~pathUsed.value(_);
+			);
+			amp = (velocity.linlin(0,127,0,1));
 			if (onset,
 				{
 					~gateSynths[in][out].set(\gate, 0);
@@ -246,7 +247,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 							\in, ~busAt[\feedback][in],
 							\out, ~busAt[\res][out],
 							\amp, amp,
-							\pathcount, sharedpaths.size,
+							\pathcount, pathcount,
 							\gate, 1
 						],
 						~group[\feedback]
@@ -256,7 +257,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 					~gateSynths[in][out].set(\amp, amp);
 				}
 			);
-			~gateSynths.do({ arg synths; synths[out].set(\pathcount, sharedpaths.size)});
+			~gateSynths.do({ arg synths; synths[out].set(\pathcount, pathcount)});
 		}
 	);
 };
