@@ -1,11 +1,15 @@
 (
 ~highestNote = 76 - 4; // 76 is the highest note available with default control raite
 ~tonic = ~highestNote-36;
+//~resonatorSynth = \distortedResonator;
+~resonatorSynth = \clippedResonator;
+//~feedbackSynth = \feedbackGate;
+~feedbackSynth = \feedbackPluck;
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
+~delayKeys = [\eighth, \sixth, \fifth, \quarter, \third, \half];
 ~delayTimes = Dictionary.newFrom(
-	[\eighth, 1/8, \sixth, 1/6, \fifth, 1/5, \quarter, 1/4, \third, 1/3, \half, 1/2] * f.reciprocal
+	[~delayKeys, (f * [8,6,5,4,3,2]).reciprocal].flop.flatten;
 );
-~delayKeys = ~delayTimes.keys.asArray;
 
 ~feedbackPaths = Array.fill(128, { [] });
 ~feedbackPaths[~tonic+36] = [\eighth]; // 8f = tonic + 36.0 semitone
@@ -66,11 +70,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 });
 
 ~currentVelocities = Array.fill(~feedbackLinks.size, 0);
-~gateSynths = Dictionary.new();
-~delayKeys.do({
-	arg in;
-	~gateSynths.add(in -> Dictionary.new());
-});
+
 
 ~out = 0;
 ~makeBusses = {
@@ -105,7 +105,20 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		sig = In.ar(in).madd(gain).softclip;
 		sig = LPF.ar(sig, 10000);
 		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp);
-		sig = LeakDC.ar(sig);
+		//sig = LeakDC.ar(sig, 0.9995);
+		sig = HPF.ar(sig, 10);
+		Out.ar(feedback_out, sig);
+		Out.ar(out, sig);
+	}).add;
+
+	SynthDef(\clippedResonator, {
+		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, decaytime=10;
+		var sig, amp;
+		amp = (-60 * delaytime/decaytime).dbamp;
+		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
+		sig = In.ar(in);
+		sig = LPF.ar(sig, 10000);
+		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp).fold(-1,1);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
 	}).add;
@@ -117,9 +130,32 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		env = EnvGen.ar(
 			Env.adsr(decayTime: 0.2, sustainLevel:sustain, releaseTime:0.3),
 			gate,
-			doneAction:2
+			doneAction:0
 		);
 		sig = InFeedback.ar(in) * env * amp * 4/sustain;
+		Out.ar(out, sig);
+	}).add;
+
+	SynthDef(\feedbackPluck, {
+		arg in=0, out=0, amp=0.3, gate=0, pathcount=1;
+		var pluckEnv, pluck, sig, env, attenuate;
+		Poll.kr(gate, in, \in);
+		Poll.kr(gate, out, \out);
+		Poll.kr(1-gate, in, \inOff);
+		Poll.kr(1-gate, out, \outOff);
+		pluckEnv = EnvGen.ar(Env.triangle((0.25/f), amp.linlin(0,1,0.1,1)), gate);
+		pluck = BrownNoise.ar(pluckEnv);
+		env = EnvGen.ar(
+			Env.asr(attackTime:0, releaseTime:0.3),
+			gate,
+			doneAction:0
+		);
+		// the goal of attenuate is to keep chords from blowing up
+		// but it's not consistent- I'm not sure if there's a formula for predicting
+		// the correct value
+		//
+		attenuate = pathcount.reciprocal;
+		sig = InFeedback.ar(in) * attenuate * env + pluck;
 		Out.ar(out, sig);
 	}).add;
 
@@ -132,7 +168,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		arg in, out;
 		var sig;
 		sig = In.ar(in, ~delayKeys.size);
-		sig = Splay.ar(sig);
+		sig = Splay.ar(LeakDC.ar(sig));
 		sig = Limiter.ar(sig);
 		Out.ar(out, sig);
 	}).add;
@@ -144,9 +180,39 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		~group.add(\res -> Group.new);
 		~group.add(\feedback -> Group.before(~group[\res]));
 		~group.add(\mixOut -> Group.after(~group[\res]));
+		~gateSynths = Dictionary.newFrom(
+			~delayKeys.collect({
+				arg in;
+				[
+					in,
+					Dictionary.newFrom(
+						~delayKeys.collect({
+							arg out;
+							[
+								out,
+								Synth.new(~feedbackSynth,
+									[
+										\in, ~busAt[\feedback][in],
+										\out, ~busAt[\res][out],
+										\gate, 0
+									],
+									~group[\feedback]
+								);
+							]
+						}).flatten
+					)
+				]
+			}).flatten
+		);
 		~delaySynths = ~delayKeys.collect({
 			arg key;
-			Synth.new(\distortedResonator,
+			"delaySynth[".post;
+			key.post;
+			"] reading from ".post;
+			~busAt[\res][key].post;
+			" writing to ".post;
+			~busAt[\feedback][key].postln;
+			Synth.new(~resonatorSynth,
 				[
 					\in, ~busAt[\res][key],
 					\feedback_out, ~busAt[\feedback][key],
@@ -157,7 +223,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 			);
 		});
 		~outSynth = Synth.new(\mixOut, [\out, ~out, \in, ~bus[\mixOut].index], ~group[\mixOut]);
-		~noiseSynth = Synth.new(\noiseFloor, [\out, ~bus[\feedback].index], ~group[\feedback]);
+		~noiseSynth = Synth.head(~group[\res], \noiseFloor, [\out, ~bus[\feedback].index]);
 	});
 };
 
@@ -173,39 +239,36 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	~feedbackLinks[midi].do({ arg link; ~updateLink.value(link, (velocity > 0))});
 };
 
+~linkVelocities = {
+	arg in_out;
+	~linkUsers[in_out].collect(~currentVelocities[_]);
+};
+
+~pathUsed = {
+	arg path;
+	~linkVelocities.value(path).any(_ > 0);
+};
+
 ~updateLink = {
 	arg in_out, onset;
-	var in, out, velocity;
+	var in, out, velocities, velocity;
 	# in, out = in_out;
-	velocity = ~linkUsers[in_out].collect({
-		arg midi;
-		~currentVelocities[midi]
-	}).maxItem;
+	velocities = ~linkVelocities.value(in_out);
+	velocity = velocities.maxItem;
 	if (velocity == 0,
 		{
 			~gateSynths[in][out].set(\gate, 0);
-			~gateSynths[in][out] = nil;
 		},
 		{
-			var amp;
-			amp = (velocity.linlin(0,127,0,1));
-			if (onset,
-				{
-					~gateSynths[in][out].set(\gate, 0);
-					~gateSynths[in][out] = Synth.new(\feedbackGate,
-						[
-							\in, ~busAt[\feedback][in],
-							\out, ~busAt[\res][out],
-							\amp, amp,
-							\gate, 1
-						],
-						~group[\feedback]
-					);
-				},
-				{
-					~gateSynths[in][out].set(\amp, amp);
-				}
+			var amp, pathcount;
+			pathcount = ~delayKeys.collect(
+				[_, out];
+			).count(
+				~pathUsed.value(_);
 			);
+			amp = (velocity.linlin(0,127,0,1));
+			~gateSynths[in][out].set(\amp, amp, \gate, 1);
+			~gateSynths.do({ arg synths; synths[out].set(\pathcount, pathcount)});
 		}
 	);
 };
@@ -246,12 +309,11 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	});
 };
 )
-s.quit;
 (
 ~loadSynthDefs.value();
 s.freeAll;
 )
-
+s.quit;
 (
 ServerBoot.add(~makeBusses);
 ServerQuit.add(~cleanup);
