@@ -223,7 +223,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 			);
 		});
 		~outSynth = Synth.new(\mixOut, [\out, ~out, \in, ~bus[\mixOut].index], ~group[\mixOut]);
-		//~noiseSynth = Synth.new(\noiseFloor, [\out, ~bus[\feedback].index], ~group[\feedback]);
+		~noiseSynth = Synth.head(~group[\res], \noiseFloor, [\out, ~bus[\feedback].index]);
 	});
 };
 
