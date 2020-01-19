@@ -70,11 +70,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 });
 
 ~currentVelocities = Array.fill(~feedbackLinks.size, 0);
-~gateSynths = Dictionary.new();
-~delayKeys.do({
-	arg in;
-	~gateSynths.add(in -> Dictionary.new());
-});
+
 
 ~out = 0;
 ~makeBusses = {
@@ -123,7 +119,6 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		sig = In.ar(in);
 		sig = LPF.ar(sig, 10000);
 		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp).fold(-1,1);
-		//sig = LeakDC.ar(sig);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
 	}).add;
@@ -135,7 +130,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		env = EnvGen.ar(
 			Env.adsr(decayTime: 0.2, sustainLevel:sustain, releaseTime:0.3),
 			gate,
-			doneAction:2
+			doneAction:0
 		);
 		sig = InFeedback.ar(in) * env * amp * 4/sustain;
 		Out.ar(out, sig);
@@ -144,12 +139,16 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	SynthDef(\feedbackPluck, {
 		arg in=0, out=0, amp=0.3, gate=0, pathcount=1;
 		var pluckEnv, pluck, sig, env, attenuate;
-		pluckEnv = EnvGen.ar(Env.triangle((0.25/f), amp.linlin(0,1,0.1,1)));
+		Poll.kr(gate, in, \in);
+		Poll.kr(gate, out, \out);
+		Poll.kr(1-gate, in, \inOff);
+		Poll.kr(1-gate, out, \outOff);
+		pluckEnv = EnvGen.ar(Env.triangle((0.25/f), amp.linlin(0,1,0.1,1)), gate);
 		pluck = BrownNoise.ar(pluckEnv);
 		env = EnvGen.ar(
 			Env.asr(attackTime:0, releaseTime:0.3),
 			gate,
-			doneAction:2
+			doneAction:0
 		);
 		// the goal of attenuate is to keep chords from blowing up
 		// but it's not consistent- I'm not sure if there's a formula for predicting
@@ -181,8 +180,38 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		~group.add(\res -> Group.new);
 		~group.add(\feedback -> Group.before(~group[\res]));
 		~group.add(\mixOut -> Group.after(~group[\res]));
+		~gateSynths = Dictionary.newFrom(
+			~delayKeys.collect({
+				arg in;
+				[
+					in,
+					Dictionary.newFrom(
+						~delayKeys.collect({
+							arg out;
+							[
+								out,
+								Synth.new(~feedbackSynth,
+									[
+										\in, ~busAt[\feedback][in],
+										\out, ~busAt[\res][out],
+										\gate, 0
+									],
+									~group[\feedback]
+								);
+							]
+						}).flatten
+					)
+				]
+			}).flatten
+		);
 		~delaySynths = ~delayKeys.collect({
 			arg key;
+			"delaySynth[".post;
+			key.post;
+			"] reading from ".post;
+			~busAt[\res][key].post;
+			" writing to ".post;
+			~busAt[\feedback][key].postln;
 			Synth.new(~resonatorSynth,
 				[
 					\in, ~busAt[\res][key],
@@ -194,7 +223,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 			);
 		});
 		~outSynth = Synth.new(\mixOut, [\out, ~out, \in, ~bus[\mixOut].index], ~group[\mixOut]);
-		~noiseSynth = Synth.new(\noiseFloor, [\out, ~bus[\feedback].index], ~group[\feedback]);
+		//~noiseSynth = Synth.new(\noiseFloor, [\out, ~bus[\feedback].index], ~group[\feedback]);
 	});
 };
 
@@ -229,7 +258,6 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	if (velocity == 0,
 		{
 			~gateSynths[in][out].set(\gate, 0);
-			~gateSynths[in][out] = nil;
 		},
 		{
 			var amp, pathcount;
@@ -239,24 +267,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 				~pathUsed.value(_);
 			);
 			amp = (velocity.linlin(0,127,0,1));
-			if (onset,
-				{
-					~gateSynths[in][out].set(\gate, 0);
-					~gateSynths[in][out] = Synth.new(~feedbackSynth,
-						[
-							\in, ~busAt[\feedback][in],
-							\out, ~busAt[\res][out],
-							\amp, amp,
-							\pathcount, pathcount,
-							\gate, 1
-						],
-						~group[\feedback]
-					);
-				},
-				{
-					~gateSynths[in][out].set(\amp, amp);
-				}
-			);
+			~gateSynths[in][out].set(\amp, amp, \gate, 1);
 			~gateSynths.do({ arg synths; synths[out].set(\pathcount, pathcount)});
 		}
 	);
