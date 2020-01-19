@@ -6,10 +6,10 @@
 //~feedbackSynth = \feedbackGate;
 ~feedbackSynth = \feedbackPluck;
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
+~delayKeys = [\eighth, \sixth, \fifth, \quarter, \third, \half];
 ~delayTimes = Dictionary.newFrom(
-	[\eighth, 1/8, \sixth, 1/6, \fifth, 1/5, \quarter, 1/4, \third, 1/3, \half, 1/2] * f.reciprocal
+	[~delayKeys, (f * [8,6,5,4,3,2]).reciprocal].flop.flatten;
 );
-~delayKeys = ~delayTimes.keys.asArray;
 
 ~feedbackPaths = Array.fill(128, { [] });
 ~feedbackPaths[~tonic+36] = [\eighth]; // 8f = tonic + 36.0 semitone
@@ -154,7 +154,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		// but it's not consistent- I'm not sure if there's a formula for predicting
 		// the correct value
 		//
-		attenuate = pathcount.sqrt.reciprocal;
+		attenuate = pathcount.reciprocal;
 		sig = InFeedback.ar(in) * attenuate * env + pluck;
 		Out.ar(out, sig);
 	}).add;
