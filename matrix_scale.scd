@@ -139,10 +139,6 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	SynthDef(\feedbackPluck, {
 		arg in=0, out=0, amp=0.3, gate=0, pathcount=1;
 		var pluckEnv, pluck, sig, env, attenuate;
-		Poll.kr(gate, in, \in);
-		Poll.kr(gate, out, \out);
-		Poll.kr(1-gate, in, \inOff);
-		Poll.kr(1-gate, out, \outOff);
 		pluckEnv = EnvGen.ar(Env.triangle((0.25/f), amp.linlin(0,1,0.1,1)), gate);
 		pluck = BrownNoise.ar(pluckEnv);
 		env = EnvGen.ar(
@@ -172,6 +168,16 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		sig = Limiter.ar(sig);
 		Out.ar(out, sig);
 	}).add;
+};
+
+~mapToDict = {
+	arg keys, value_func;
+	Dictionary.newFrom(
+		keys.collect({
+			arg key, i;
+			[ key, value_func.value(key, i) ]
+		}).flatten
+	);
 };
 
 ~makeNodes = {
@@ -204,24 +210,27 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 				]
 			}).flatten
 		);
-		~delaySynths = ~delayKeys.collect({
-			arg key;
-			"delaySynth[".post;
-			key.post;
-			"] reading from ".post;
-			~busAt[\res][key].post;
-			" writing to ".post;
-			~busAt[\feedback][key].postln;
-			Synth.new(~resonatorSynth,
-				[
-					\in, ~busAt[\res][key],
-					\feedback_out, ~busAt[\feedback][key],
-					\out, ~busAt[\mixOut][key],
-					\delaytime, ~delayTimes[key];
-				],
-				~group[\res]
-			);
-		});
+		~delaySynths = ~mapToDict.value(
+			~delayKeys,
+			{
+				arg key;
+				"delaySynth[".post;
+				key.post;
+				"] reading from ".post;
+				~busAt[\res][key].post;
+				" writing to ".post;
+				~busAt[\feedback][key].postln;
+				Synth.new(~resonatorSynth,
+					[
+						\in, ~busAt[\res][key],
+						\feedback_out, ~busAt[\feedback][key],
+						\out, ~busAt[\mixOut][key],
+						\delaytime, ~delayTimes[key];
+					],
+					~group[\res]
+				);
+			}
+		);
 		~outSynth = Synth.new(\mixOut, [\out, ~out, \in, ~bus[\mixOut].index], ~group[\mixOut]);
 		~noiseSynth = Synth.head(~group[\res], \noiseFloor, [\out, ~bus[\feedback].index]);
 	});
@@ -275,7 +284,12 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 ~controlGates = {
 	arg key, val;
-	// TODO
+	if (key == \bend) {
+		~delayKeys.do({
+			arg delayKey;
+			~delaySynths[delayKey].set(\delaytime, ~delayTimes[delayKey] / val.midiratio);
+		});
+	};
 };
 
 ~mapKeyboard = {
