@@ -1,18 +1,23 @@
 (
 ~highestNote = 76 - 4; // 76 is the highest note available with default control raite
 ~tonic = ~highestNote-36;
-//~mode = \pizz;
-~mode = \arco;
-if (~mode == \arco,
-	{
-		~resonatorSynth = \distortedResonator;
-		~feedbackSynth = \feedbackGate;
-	},
-	{
-		~resonatorSynth = \clippedResonator;
-		~feedbackSynth = \feedbackPluck;
-	}
-);
+~resonatorSynth = \distortedResonator;
+~feedbackSynth = \feedbackGate;
+~setMode = {
+	arg mode;
+	~loadSynthDefs.value();
+	if (mode == \arco,
+		{
+			~resonatorSynth = \distortedResonator;
+			~feedbackSynth = \feedbackGate;
+		},
+		{
+			~resonatorSynth = \clippedResonator;
+			~feedbackSynth = \feedbackPluck;
+		}
+	);
+	s.freeAll;
+};
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~delayKeys = [\eighth, \sixth, \fifth, \quarter, \third, \half];
 ~delayTimes = Dictionary.newFrom(
@@ -198,6 +203,8 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 };
 
 ~makeNodes = {
+	"makeNodes ".post;
+	~feedbackSynth.postln;
 	s.bind({
 		~group = Dictionary.new;
 		~group.add(\res -> Group.new);
@@ -365,10 +372,9 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	});
 };
 )
-(
-~loadSynthDefs.value();
-s.freeAll;
-)
+
+~setMode.value(\arco);
+~setMode.value(\pizz);
 s.scope(6,4);
 s.quit;
 (
@@ -382,7 +388,7 @@ s.waitForBoot({
 	// remaining functions
 	ServerTree.add(~makeNodes);
 	ServerTree.add(~mapKeyboard);
-	s.freeAll;
+	~setMode.value(\arco);
 
 	s.sync;
 
