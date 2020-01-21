@@ -1,10 +1,18 @@
 (
 ~highestNote = 76 - 4; // 76 is the highest note available with default control raite
 ~tonic = ~highestNote-36;
-//~resonatorSynth = \distortedResonator;
-~resonatorSynth = \clippedResonator;
-//~feedbackSynth = \feedbackGate;
-~feedbackSynth = \feedbackPluck;
+//~mode = \pizz;
+~mode = \arco;
+if (~mode == \arco,
+	{
+		~resonatorSynth = \distortedResonator;
+		~feedbackSynth = \feedbackGate;
+	},
+	{
+		~resonatorSynth = \clippedResonator;
+		~feedbackSynth = \feedbackPluck;
+	}
+);
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~delayKeys = [\eighth, \sixth, \fifth, \quarter, \third, \half];
 ~delayTimes = Dictionary.newFrom(
@@ -99,14 +107,19 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~loadSynthDefs = {
 	//synthdefs
 	SynthDef(\distortedResonator, {
-		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, gain=1, amp=1;
-		var sig;
+		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, gain=1, amp=1, depth = 0, cutoff = 20;
+		var sig, vibrato;
 		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
+		vibrato = SinOsc.kr(
+			freq: LFNoise1.kr(1).range(6,9),
+			mul: LFNoise1.kr(1).range(0.5, 1);
+		) * depth;
+		delaytime = delaytime / vibrato.midiratio;
 		sig = In.ar(in).madd(gain).softclip;
 		sig = LPF.ar(sig, 10000);
 		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp);
-		//sig = LeakDC.ar(sig, 0.9995);
-		sig = HPF.ar(sig, 10);
+		//sig = LeakDC.ar(sig);
+		sig = HPF.ar(sig, cutoff);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
 	}).add;
@@ -124,15 +137,19 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	}).add;
 
 	SynthDef(\feedbackGate, {
-		arg in=0, out=0, amp=0.3, gate=0;
-		var sig, env, sustain;
+		arg in=0, out=0, amp=0.3, gate=0, depth=0;
+		var sig, env, sustain, tremelo;
 		sustain = 0.7;
+		tremelo = SinOsc.kr(
+			freq: LFNoise1.kr(1).range(6,9),
+			mul: LFNoise1.kr(1).range(-1, -0.5);
+		) * depth;
 		env = EnvGen.ar(
 			Env.adsr(decayTime: 0.2, sustainLevel:sustain, releaseTime:0.3),
 			gate,
 			doneAction:0
 		);
-		sig = InFeedback.ar(in) * env * amp * 4/sustain;
+		sig = InFeedback.ar(in) * env * amp * tremelo.dbamp * 4/sustain;
 		Out.ar(out, sig);
 	}).add;
 
@@ -236,8 +253,18 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	});
 };
 
+~lowestNoteUsing = {
+	arg delayKey;
+	(0..~currentVelocities.size-1).select({
+		arg midi;
+		(~currentVelocities[midi] > 0) &&
+		~feedbackPaths[midi].includes(delayKey);
+	}).minItem;
+};
+
 ~updateLinks = {
 	arg midi, velocity=0;
+	var lowestnote;
 	"note ".post;
 	midi.post;
 	", velocity ".post;
@@ -246,6 +273,17 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	~feedbackPaths[midi].postln;
 	~currentVelocities[midi] = velocity;
 	~feedbackLinks[midi].do({ arg link; ~updateLink.value(link, (velocity > 0))});
+	~delayKeys.do({
+		arg delayKey;
+		lowestnote = ~lowestNoteUsing.value(delayKey);
+		if (lowestnote != nil,
+			{
+				var cutoffnote;
+				cutoffnote = [15, lowestnote].mean.max(15);
+				~delaySynths[delayKey].set(\cutoff, cutoffnote.midicps);
+			}
+		);
+	});
 };
 
 ~linkVelocities = {
@@ -284,12 +322,16 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 ~controlGates = {
 	arg key, val;
-	if (key == \bend) {
+	if (key == \bend, {
 		~delayKeys.do({
 			arg delayKey;
 			~delaySynths[delayKey].set(\delaytime, ~delayTimes[delayKey] / val.midiratio);
-		});
-	};
+		})
+	});
+	if (key == \mod, {
+		~group[\res].set(\depth, val * 1.5);
+		~group[\feedback].set(\depth, val * 12);
+	});
 };
 
 ~mapKeyboard = {
@@ -327,6 +369,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~loadSynthDefs.value();
 s.freeAll;
 )
+s.scope(6,4);
 s.quit;
 (
 ServerBoot.add(~makeBusses);
