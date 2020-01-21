@@ -112,7 +112,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~loadSynthDefs = {
 	//synthdefs
 	SynthDef(\arcoResonator, {
-		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, gain=1, amp=1, depth = 0, cutoff = 20;
+		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, gain=1, amp=1, depth = 0;
 		var sig, vibrato;
 		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
 		vibrato = SinOsc.kr(
@@ -123,20 +123,19 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		sig = In.ar(in).madd(gain).softclip;
 		sig = LPF.ar(sig, 10000);
 		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp);
-		sig = HPF.ar(sig, cutoff);
+		sig = LeakDC.ar(sig);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
 	}).add;
 
 	SynthDef(\pizzicatoResonator, {
-		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, decaytime=10, cutoff=20;
+		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, decaytime=10;
 		var sig, amp;
 		amp = (-60 * delaytime/decaytime).dbamp;
 		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
 		sig = In.ar(in);
 		sig = LPF.ar(sig, 10000);
 		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp).fold(-1,1);
-		//sig = HPF.ar(sig, cutoff);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
 	}).add;
@@ -159,10 +158,10 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	}).add;
 
 	SynthDef(\pizzicatoFeedback, {
-		arg in=0, out=0, amp=0.3, gate=0, pathcount=1, cutoff=20;
+		arg in=0, out=0, amp=0.3, gate=0, pathcount=1;
 		var pluckEnv, pluck, sig, env, attenuate;
 		pluckEnv = EnvGen.ar(Env.triangle((0.25/f), amp.linlin(0,1,0.1,1)), gate);
-		pluck = HPF.ar(BrownNoise.ar(pluckEnv), cutoff);
+		pluck = HPF.ar(BrownNoise.ar(pluckEnv), 40);
 		env = EnvGen.ar(
 			Env.asr(attackTime:0, releaseTime:0.3),
 			gate,
@@ -179,7 +178,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 	SynthDef(\noiseFloor, {
 		arg out=0, amp=0.001;
-		Out.ar(out, BrownNoise.ar(amp!~delayKeys.size));
+		Out.ar(out, HPF.ar(BrownNoise.ar(amp!~delayKeys.size), 40));
 	}).add;
 
 	SynthDef(\mixOut, {
@@ -280,17 +279,6 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	~feedbackPaths[midi].postln;
 	~currentVelocities[midi] = velocity;
 	~feedbackLinks[midi].do({ arg link; ~updateLink.value(link, (velocity > 0))});
-	~delayKeys.do({
-		arg delayKey;
-		lowestnote = ~lowestNoteUsing.value(delayKey);
-		if (lowestnote != nil,
-			{
-				var cutoffnote;
-				cutoffnote = [15, lowestnote].mean.max(15);
-				~delaySynths[delayKey].set(\cutoff, cutoffnote.midicps);
-			}
-		);
-	});
 };
 
 ~linkVelocities = {
