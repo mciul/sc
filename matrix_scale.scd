@@ -1,19 +1,19 @@
 (
 ~highestNote = 76 - 4; // 76 is the highest note available with default control raite
 ~tonic = ~highestNote-36;
-~resonatorSynth = \distortedResonator;
-~feedbackSynth = \feedbackGate;
+~resonatorSynth = \arcoResonator;
+~feedbackSynth = \arcoFeedback;
 ~setMode = {
 	arg mode;
 	~loadSynthDefs.value();
 	if (mode == \arco,
 		{
-			~resonatorSynth = \distortedResonator;
-			~feedbackSynth = \feedbackGate;
+			~resonatorSynth = \arcoResonator;
+			~feedbackSynth = \arcoFeedback;
 		},
 		{
-			~resonatorSynth = \clippedResonator;
-			~feedbackSynth = \feedbackPluck;
+			~resonatorSynth = \pizzicatoResonator;
+			~feedbackSynth = \pizzicatoFeedback;
 		}
 	);
 	s.freeAll;
@@ -111,7 +111,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 ~loadSynthDefs = {
 	//synthdefs
-	SynthDef(\distortedResonator, {
+	SynthDef(\arcoResonator, {
 		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, gain=1, amp=1, depth = 0, cutoff = 20;
 		var sig, vibrato;
 		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
@@ -123,25 +123,25 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		sig = In.ar(in).madd(gain).softclip;
 		sig = LPF.ar(sig, 10000);
 		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp);
-		//sig = LeakDC.ar(sig);
 		sig = HPF.ar(sig, cutoff);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
 	}).add;
 
-	SynthDef(\clippedResonator, {
-		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, decaytime=10;
+	SynthDef(\pizzicatoResonator, {
+		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, decaytime=10, cutoff=20;
 		var sig, amp;
 		amp = (-60 * delaytime/decaytime).dbamp;
 		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
 		sig = In.ar(in);
 		sig = LPF.ar(sig, 10000);
 		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp).fold(-1,1);
+		//sig = HPF.ar(sig, cutoff);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
 	}).add;
 
-	SynthDef(\feedbackGate, {
+	SynthDef(\arcoFeedback, {
 		arg in=0, out=0, amp=0.3, gate=0, depth=0;
 		var sig, env, sustain, tremelo;
 		sustain = 0.7;
@@ -158,11 +158,11 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		Out.ar(out, sig);
 	}).add;
 
-	SynthDef(\feedbackPluck, {
-		arg in=0, out=0, amp=0.3, gate=0, pathcount=1;
+	SynthDef(\pizzicatoFeedback, {
+		arg in=0, out=0, amp=0.3, gate=0, pathcount=1, cutoff=20;
 		var pluckEnv, pluck, sig, env, attenuate;
 		pluckEnv = EnvGen.ar(Env.triangle((0.25/f), amp.linlin(0,1,0.1,1)), gate);
-		pluck = BrownNoise.ar(pluckEnv);
+		pluck = HPF.ar(BrownNoise.ar(pluckEnv), cutoff);
 		env = EnvGen.ar(
 			Env.asr(attackTime:0, releaseTime:0.3),
 			gate,
@@ -388,7 +388,7 @@ s.waitForBoot({
 	// remaining functions
 	ServerTree.add(~makeNodes);
 	ServerTree.add(~mapKeyboard);
-	~setMode.value(\arco);
+	~setMode.value(\pizz);
 
 	s.sync;
 
