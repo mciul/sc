@@ -129,9 +129,9 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	}).add;
 
 	SynthDef(\pizzicatoResonator, {
-		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, decaytime=10;
+		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, decaytime=10, pathcount=2;
 		var sig, amp;
-		amp = (-60 * delaytime/decaytime).dbamp;
+		amp = (-60 * delaytime/(decaytime * pathcount)).dbamp;
 		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
 		sig = In.ar(in);
 		sig = LPF.ar(sig, 10000);
@@ -309,6 +309,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 				~pathUsed.value(_);
 			);
 			amp = (velocity.linlin(0,127,0,1));
+			~delaySynths[out].set(\pathcount, pathcount);
 			~gateSynths[in][out].set(\amp, amp, \gate, 1);
 			~gateSynths.do({ arg synths; synths[out].set(\pathcount, pathcount)});
 		}
