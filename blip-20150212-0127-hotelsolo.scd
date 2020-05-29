@@ -7,8 +7,12 @@ s.boot;
 s.quit;
 b.free;
 b = Buffer.read( s, "/Users/mciul/Google Drive/samples/backyard 20060801 1425.aiff" );
+b = Buffer.read( s, "/Users/mciul/Google Drive/samples/langelliott_american_crow.aiff" );
+b = Buffer.read( s, "/Users/mciul/Google Drive/samples/silence_chorus_nine.aiff");
+b = Buffer.read( s, "/Users/mciul/Google Drive/samples/milva_passiun_edit_1.aiff");
 b = Buffer.read( s, "/Users/mciul/Google Drive/samples/mono/silvermountain_theme_mono.aiff" );
 b = Buffer.read( s, "/Users/mciul/Google Drive/samples/hotel_solo.aiff" );
+b = Buffer.read( s, "/Users/mciul/Google Drive/samples/harold_music.aiff" );
 
 b.numChannels
 s.prepareForRecord;
