@@ -53,10 +53,21 @@ b = Buffer.readChannel(
 		var period = ~analysis_period * s.sampleRate / s.options.blockSize;
 		amps.clump(period).collect(_.maxItem);
 	});
-	~env_buffers = ~max_amps.collect(Buffer.loadCollection(s, _));
+	~stacked_amps = ~max_amps.flop.collect({ |channels|
+		var out = FloatArray.fill(channels.size, 0);
+		var subharmonics = [-12,-19,-24];
+		~notes.size.do({ |note|
+			var sub_notes = subharmonics.collect(note - _).select(_ >= 0);
+			var sub_power = sub_notes.collect(out[_].squared).sum;
+			var power_diff = channels[note].squared - sub_power;
+			out[note] = power_diff.max(0).sqrt;
+		});
+		out;
+	}).flop;
+	~pure_env_buffers = ~max_amps.collect(Buffer.loadCollection(s, _));
+	~accordion_buffers = ~stacked_amps.collect(Buffer.loadCollection(s, _));
 });
 )
-
 
 // check analysis
 (
@@ -68,18 +79,36 @@ SynthDef.new(\tempoPlayer, {
 	var env = DemandEnvGen.kr(level, dur);
 	Out.ar(0, Pan2.ar(SinOsc.ar(freq, mul: env)));
 }).send;
+SynthDef.new(\accordionPlayer, {
+	arg freq, amp_buf, dur;
+	var trig = Impulse.kr(dur.reciprocal);
+	var index = PulseCount.kr(trig);
+	var level = Dbufrd.new(amp_buf, index);
+	var env = DemandEnvGen.kr(level, dur);
+	var tone = Klang.ar(`[[1,2,3,4], nil, nil], freq * ([-0.05,0.05].midiratio)).sum;
+	Out.ar(0, Pan2.ar(tone * env));
+}).send;
 )
 (
 ~analysis.numChannels.do { |i|
 	Synth.new(\tempoPlayer, [
 		\freq, ~bins[i].midicps,
-		\amp_buf, ~env_buffers[i],
+		\amp_buf, ~pure_env_buffers[i],
+		\dur, ~analysis_period
+	]);
+}
+)
+(
+~analysis.numChannels.do { |i|
+	Synth.new(\accordionPlayer, [
+		\freq, ~bins[i].midicps,
+		\amp_buf, ~accordion_buffers[i],
 		\dur, ~analysis_period
 	]);
 }
 )
 
-Synth.new(\partialPlayer, [\freq:440, \avg_amp: 0.5, \max_amp: 1, \peak_time: 0.5, \dur: 1]);
+Synth.new(\accordionPlayer, [\freq:440, \avg_amp: 0.5, \max_amp: 1, \peak_time: 0.5, \dur: 1]);
 
 (
 {
@@ -110,7 +139,7 @@ Synth.new(\partialPlayer, [\freq:440, \avg_amp: 0.5, \max_amp: 1, \peak_time: 0.
 		//Poll.kr(SetResetFF.kr(amps[i] - (thresh * 2), amps[i] - thresh), amps[i].ampdb.round, i);
 		//Poll.kr(SetResetFF.kr(amps[i] - (thresh * 4), amps[i] - thresh), amps[i].ampdb.round, i);
 		Poll.kr(SetResetFF.kr(amps[i] - (thresh * 8), orig_amps[i] - thresh), amps[i].ampdb.round, i);
-		Klang.ar(`[[1,2,3,4,5], nil, nil], c * ([-0.05,0.05].midiratio)).sum * amp_out;
+		Klang.ar(`[[1,2,3,4], nil, nil], c * ([-0.05,0.05].midiratio)).sum * amp_out;
 		//SinOsc.ar(c, 0, amp_out * 0.5);
 	};
 	Pan2.ar(synths.sum);
