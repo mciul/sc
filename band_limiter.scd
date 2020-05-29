@@ -12,9 +12,9 @@ b = Buffer.read( s, "/Users/mciul/Music/GarageBand/quiethours - 3:24:20, 6.17 PM
 		var max_delay = 0.25;
 		var gain = 1;
 		var limit_delay = (cutoffs[0]/cutoffs[i]) * max_delay;
-		var extra_delay = max_delay - limit_delay;
-		DelayN.ar(Limiter.ar(sig * gain, cutoffs.size.sqrt, dur: limit_delay), extra_delay, extra_delay);
+		var extra_delay = 64/44100 + max_delay - limit_delay;
+		DelayC.ar(Limiter.ar(sig * gain, 1, dur: limit_delay), extra_delay, extra_delay);
 	};
 	limiters.sum;
 }.play
-) 
+)
