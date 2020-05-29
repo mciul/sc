@@ -3,26 +3,36 @@ s.boot;
 b = Buffer.read( s, "/Users/mciul/Music/GarageBand/quiethours - 3:24:20, 6.17 PM.aif" );
 b = Buffer.read( s, "/Users/mciul/Google Drive/samples/han_wang_apology.aiff");
 b = Buffer.read( s, "/Users/mciul/Google Drive/samples/langelliott_american_crow.aiff");
-b = Buffer.read( s, "/Users/mciul/Music/GarageBand/breathing_together_vocal.aif");
-
+~stereo = Buffer.read( s, "/Users/mciul/Music/GarageBand/breathing_together_vocal.aif");
 b.numChannels
-Buffer.freeAll;
 b = Buffer.read( s, "/Users/mciul/Google Drive/samples/breathing_are3.aiff");
 
-~notes = (53..93);
-~bins = (53..121);
-~analysis.free;
-~analysis = Buffer.alloc(s, b.numFrames / s.options.blockSize, ~bins.size);
+(
+Buffer.freeAll;
+~createAnalysisBuffer = { |buf|
+	~notes = (53..93);
+	~bins = (53..121);
+	~analysis.free;
+	~bpm = 83;
+	~analysis = Buffer.alloc(s, buf.numFrames / s.options.blockSize, ~bins.size);
+};
+b = Buffer.readChannel(
+	s,
+	"/Users/mciul/Music/GarageBand/breathing_together_vocal.aif",
+	channels: [0],
+	action: ~createAnalysisBuffer
+);
+)
 
 // perform analysis - load data
 (
 {
 	var centers = ~bins.midicps;
 	var rq = 0.75.midiratio - 1;
-	var dur = b.numFrames * BufRateScale.ir(b) / SampleRate.ir;
+	var dur = BufDur.kr(b);
 	var play_index = EnvGen.ar(Env.linen(dur, 0, 0, BufFrames.ir(b)), doneAction:2);
-	var in = BufRd.ar(b.numChannels, b, play_index).sum;
-	var rec_index = EnvGen.ar(Env.linen(dur, 0, 0, BufFrames.ir(~analysis)));
+	var in = BufRd.ar(1, b, play_index);
+	var rec_index = Line.kr(0, BufFrames.ir(~analysis), dur);
 	var amps = centers.collect { |c|
 		Amplitude.kr(BPF.ar(in, c, rq));
 	};
@@ -30,56 +40,41 @@ b = Buffer.read( s, "/Users/mciul/Google Drive/samples/breathing_are3.aiff");
 	in;
 }.play;
 )
-FloatArray
 
-// perform analysis - find average and max amp
+// perform analysis - create separate amp-tracking buffers
 (
+~seconds_per_beat = 60 / ~bpm;
+~analysis_period = ~seconds_per_beat;
+~analysis_frames = b.duration / ~seconds_per_beat;
 ~analysis.loadToFloatArray(action: {
 	arg array;
 	var channels = array.clump(~analysis.numChannels).flop;
-	~avg_amps = channels.collect(_.mean);
-	~max_amps = channels.collect(_.maxValue({|amp| amp}));
-	~peak_times = channels.collect(_.maxIndex({|amp| amp})) / ~analysis.numFrames;
+	~max_amps = channels.collect({ |amps|
+		var period = ~analysis_period * s.sampleRate / s.options.blockSize;
+		amps.clump(period).collect(_.maxItem);
+	});
+	~env_buffers = ~max_amps.collect(Buffer.loadCollection(s, _));
 });
 )
 
+
 // check analysis
 (
-SynthDef.new(\partialPlayer, {
-	arg freq, avg_amp, max_amp, peak_time, dur;
-	var min_amp = ((2 * avg_amp) - max_amp).max(0);
-	var env = EnvGen.kr(
-		Env.new([0, min_amp, max_amp, min_amp, 0], [0, peak_time, 1-peak_time, 0]),
-		timeScale: dur,
-		doneAction: 2);
+SynthDef.new(\tempoPlayer, {
+	arg freq, amp_buf, dur;
+	var trig = Impulse.kr(dur.reciprocal);
+	var index = PulseCount.kr(trig);
+	var level = Dbufrd.new(amp_buf, index);
+	var env = DemandEnvGen.kr(level, dur);
 	Out.ar(0, Pan2.ar(SinOsc.ar(freq, mul: env)));
 }).send;
-SynthDef.new(\sustainPlayer, {
-	arg freq, avg_amp, max_amp, peak_time, dur;
-	var sustain = ((2 * avg_amp) - max_amp) / max_amp;
-	var plateau = sustain.max(0);
-	var pre_plateau = peak_time * (1 - plateau);
-	var post_plateau = peak_time + (plateau / (1 - peak_time));
-	var silence = sustain.neg.max(0);
-	var pre_silence = silence * peak_time;
-	var post_silence = peak_time + ((1 - silence) * (1 - peak_time));
-	var levels = [0,0,max_amp, max_amp,0];
-	var times = [pre_silence, pre_plateau, post_plateau, post_silence];
-	var env = EnvGen.kr(
-		Env.new(levels, times),
-		timeScale: dur,
-		doneAction: 2);
-	Out.ar(0, Pan2.ar(SinOsc.ar(freq, mul: env)));
-}).send;)
-
+)
 (
 ~analysis.numChannels.do { |i|
-	Synth.new(\sustainPlayer, [
+	Synth.new(\tempoPlayer, [
 		\freq, ~bins[i].midicps,
-		\avg_amp, ~avg_amps[i],
-		\max_amp, ~max_amps[i],
-		\peak_time, ~peak_times[i],
-		\dur, 2
+		\amp_buf, ~env_buffers[i],
+		\dur, ~analysis_period
 	]);
 }
 )
