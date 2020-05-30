@@ -137,7 +137,7 @@ SynthDef.new(\accordionSwell, {
 	};
 };
 
-~routine_analysis = { |amp_array, synth, start_measure=0, end_measure=40, note_dur=0.5|
+~routine_analysis = { |amp_array, synth, start_measure=0, end_measure=40, note_dur=0.5, max_notes=14|
 	r = Routine {
 		(start_measure..end_measure).do { |measure|
 			var min_index = (measure * 4).max(0).min(amp_array[0].size - 1);
@@ -146,7 +146,7 @@ SynthDef.new(\accordionSwell, {
 			var channel_sums = channel_slices.flop.collect(_.sum);
 			var top_channels = (0..channel_sums.size-1).sort(
 				{ |a,b| channel_sums[a] > channel_sums[b] }
-			)[0..13].select({ |i| channel_sums[i] > -60.dbamp }).sort;
+			)[0..(max_notes-1)].select({ |i| channel_sums[i] > -60.dbamp }).sort;
 			"***** measure ".post;
 			measure.postln;
 			top_channels.do { |channel|
@@ -176,7 +176,7 @@ SynthDef.new(\accordionSwell, {
 ~play_analysis.value(~accordion_buffers, \accordionPlayer);
 ~play_analysis.value(~pure_env_buffers, \accordionPlayer);
 
-~routine_analysis.value(~stacked_amps, \accordionSwell, 1, 3, ~analysis_period);
+~routine_analysis.value(~stacked_amps, \accordionSwell, 3, 3, ~analysis_period, 15);
 
 ~notes.size
 ~stacked_amps.size
