@@ -146,7 +146,7 @@ SynthDef.new(\accordionSwell, {
 			var channel_sums = channel_slices.flop.collect(_.sum);
 			var top_channels = (0..channel_sums.size-1).sort(
 				{ |a,b| channel_sums[a] > channel_sums[b] }
-			)[0..13].select({ |i| channel_sums[i] > -60.dbamp });
+			)[0..13].select({ |i| channel_sums[i] > -60.dbamp }).sort;
 			"***** measure ".post;
 			measure.postln;
 			top_channels.do { |channel|
