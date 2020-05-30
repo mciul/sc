@@ -50,7 +50,7 @@ Set.newFrom([-1, 0, 1].collect(_.squared)).sect([1]);
 ~subharmonics = ~harmonics[1..].neg;
 
 ~sub_indexes = { |root_index|
-	~subharmonics.collect(root_index + _).select(_ >= 0);
+	~subharmonics.collect(root_index + _).select(_ >= 0).select(_ < ~notes.size);
 };
 ~target_share = { |root_index|
 	~harmonics.size - ~sub_indexes.value(root_index).size;
@@ -71,11 +71,13 @@ Set.newFrom([-1, 0, 1].collect(_.squared)).sect([1]);
 		});
 	}).flop;
 	~stacked_amps = ~filtered_amps.flop.collect({ |channels|
-		var out = FloatArray.fill(channels.size, 0);
-		~notes.size.do({ |note|
+		var out = FloatArray.fill(~notes.size, 0);
+		out.size.do({ |note|
 			var partial_indexes = ~harmonics.collect(note+_);
 			var target_power = partial_indexes.collect({ |harmonic|
-				var sub_power = ~sub_indexes.value(harmonic).collect(out[_].squared).sum;
+				var sub_indexes = ~sub_indexes.value(harmonic);
+				var sub_power;
+				sub_power = sub_indexes.collect(out[_].squared).sum;
 				(channels[harmonic].squared - sub_power).max(0);
 			}).sum;
 			var share = ~target_share.value(note);
@@ -114,13 +116,13 @@ SynthDef.new(\accordionPlayer, {
 }).send;
 SynthDef.new(\pureSwell, {
 	arg freq, amp, dur;
-	var env = EnvGen.kr(Env.triangle(dur, amp));
+	var env = EnvGen.kr(Env.triangle(dur), doneAction:2).sqrt * amp;
 	Out.ar(0, Pan2.ar(SinOsc.ar(freq, mul: env)));
 }).send;
 
 SynthDef.new(\accordionSwell, {
 	arg freq, amp, dur;
-	var env = EnvGen.kr(Env.triangle(dur, amp));
+	var env = EnvGen.kr(Env.triangle(dur), doneAction:2).sqrt * amp;
 	var tone = Klang.ar(`[[1,2,3,4], nil, nil], freq * ([-0.05,0.05].midiratio)).sum;
 	Out.ar(0, Pan2.ar(tone * env));
 }).send;
@@ -141,6 +143,23 @@ SynthDef.new(\accordionSwell, {
 ~play_analysis.value(~pure_env_buffers, \tempoPlayer);
 ~play_analysis.value(~accordion_buffers, \accordionPlayer);
 ~play_analysis.value(~pure_env_buffers, \accordionPlayer);
+~notes.size
+~stacked_amps.size
+(
+r = Routine {
+	~stacked_amps.flop.do { |channels|
+		channels.do { |amp, i|
+			Synth.new(\accordionSwell, [
+				\freq, ~notes[i].midicps,
+				\amp, amp,
+				\dur, ~analysis_period * 2
+			]);
+		};
+		~analysis_period.yield;
+	};
+}.play;
+)
+r.stop;
 
 Synth.new(\accordionPlayer, [\freq:440, \avg_amp: 0.5, \max_amp: 1, \peak_time: 0.5, \dur: 1]);
 
