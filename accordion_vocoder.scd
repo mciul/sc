@@ -136,6 +136,31 @@ SynthDef.new(\accordionSwell, {
 		]);
 	};
 };
+
+~routine_analysis = { |amp_array, synth, start_measure=0, end_measure=40, note_dur=0.5|
+	var min_index = (start_measure * 4).max(0);
+	var max_index = (end_measure * 4).min(amp_array[0].size - 1);
+	r = Routine {
+		amp_array.flop[min_index..max_index].do { |channels, beat|
+			var top_indexes = (0..channels.size-1).sort({ |a,b| channels[a] > channels[b] });
+			"***** beat ".post;
+			beat.postln;
+			14.do { |order|
+				var i = top_indexes[order];
+				"  note ".post;
+				~notes[i].post;
+				" dynamic=".post;
+				((channels[i].ampdb / 3).round.asInt + 20).postln;
+				Synth.new(synth, [
+					\freq, ~notes[i].midicps,
+					\amp, channels[i],
+					\dur, note_dur * 2
+				]);
+			};
+			note_dur.yield;
+		};
+	}.play;
+}
 )
 
 ~play_analysis.value(~accordion_buffers, \tempoPlayer);
@@ -143,21 +168,14 @@ SynthDef.new(\accordionSwell, {
 ~play_analysis.value(~pure_env_buffers, \tempoPlayer);
 ~play_analysis.value(~accordion_buffers, \accordionPlayer);
 ~play_analysis.value(~pure_env_buffers, \accordionPlayer);
+
+~routine_analysis.value(~stacked_amps, \accordionSwell, 1, 3, ~analysis_period);
+
 ~notes.size
 ~stacked_amps.size
+[[1,3],[2,2], [3,1]].sort({|a,b| a[1] < b[1]})
 (
-r = Routine {
-	~stacked_amps.flop.do { |channels|
-		channels.do { |amp, i|
-			Synth.new(\accordionSwell, [
-				\freq, ~notes[i].midicps,
-				\amp, amp,
-				\dur, ~analysis_period * 2
-			]);
-		};
-		~analysis_period.yield;
-	};
-}.play;
+
 )
 r.stop;
 
