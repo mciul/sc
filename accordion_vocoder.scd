@@ -138,26 +138,33 @@ SynthDef.new(\accordionSwell, {
 };
 
 ~routine_analysis = { |amp_array, synth, start_measure=0, end_measure=40, note_dur=0.5|
-	var min_index = (start_measure * 4).max(0);
-	var max_index = (end_measure * 4).min(amp_array[0].size - 1);
 	r = Routine {
-		amp_array.flop[min_index..max_index].do { |channels, beat|
-			var top_indexes = (0..channels.size-1).sort({ |a,b| channels[a] > channels[b] });
-			"***** beat ".post;
-			beat.postln;
-			14.do { |order|
-				var i = top_indexes[order];
+		(start_measure..end_measure).do { |measure|
+			var min_index = (measure * 4).max(0).min(amp_array[0].size - 1);
+			var max_index = (measure * 4 + 3).max(0).min(amp_array[0].size - 1);
+			var channel_slices = amp_array.flop[min_index..max_index];
+			var channel_sums = channel_slices.flop.collect(_.sum);
+			var top_channels = (0..channel_sums.size-1).sort(
+				{ |a,b| channel_sums[a] > channel_sums[b] }
+			)[0..13].select({ |i| channel_sums[i] > -60.dbamp });
+			"***** measure ".post;
+			measure.postln;
+			top_channels.do { |channel|
 				"  note ".post;
-				~notes[i].post;
-				" dynamic=".post;
-				((channels[i].ampdb / 3).round.asInt + 20).postln;
-				Synth.new(synth, [
-					\freq, ~notes[i].midicps,
-					\amp, channels[i],
-					\dur, note_dur * 2
-				]);
+				~notes[channel].post;
+				" - ".post;
+				((channel_slices.flop[channel].ampdb / 6).round.asInt + 10).max(0).postln;
 			};
-			note_dur.yield;
+			channel_slices.do { |channels|
+				top_channels.do { |i|
+					Synth.new(synth, [
+						\freq, ~notes[i].midicps,
+						\amp, channels[i],
+						\dur, note_dur * 2
+					]);
+				};
+				note_dur.yield;
+			};
 		};
 	}.play;
 }
