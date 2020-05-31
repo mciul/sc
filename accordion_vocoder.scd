@@ -87,33 +87,12 @@ Set.newFrom([-1, 0, 1].collect(_.squared)).sect([1]);
 		out;
 	}).flop;
 
-	"Done generating data, saving to buffers".postln;
-	(~pure_env_buffers ++ ~filtered_buffers ++ ~accordion_buffers).do(_.free);
-	~pure_env_buffers = ~max_amps[..(~notes.size-1)].collect(Buffer.loadCollection(s, _));
-	~filtered_buffers = ~filtered_amps[..(~notes.size-1)].collect(Buffer.loadCollection(s, _));
-	~accordion_buffers = ~stacked_amps.collect(Buffer.loadCollection(s, _));
+	"Done generating data".postln;
 });
 )
 
 // check analysis
 (
-SynthDef.new(\tempoPlayer, {
-	arg freq, amp_buf, dur;
-	var trig = Impulse.kr(dur.reciprocal);
-	var index = PulseCount.kr(trig);
-	var level = Dbufrd.new(amp_buf, index);
-	var env = DemandEnvGen.kr(level, dur);
-	Out.ar(0, Pan2.ar(SinOsc.ar(freq, mul: env)));
-}).send;
-SynthDef.new(\accordionPlayer, {
-	arg freq, amp_buf, dur;
-	var trig = Impulse.kr(dur.reciprocal);
-	var index = PulseCount.kr(trig);
-	var level = Dbufrd.new(amp_buf, index);
-	var env = DemandEnvGen.kr(level, dur);
-	var tone = Klang.ar(`[[1,2,3,4,5], nil, nil], freq * ([-0.05,0.05].midiratio)).sum;
-	Out.ar(0, Pan2.ar(tone * env));
-}).send;
 SynthDef.new(\pureSwell, {
 	arg freq, amp, dur;
 	var env = EnvGen.kr(Env.triangle(dur), doneAction:2).sqrt * amp;
@@ -126,16 +105,6 @@ SynthDef.new(\accordionSwell, {
 	var tone = Klang.ar(`[[1,2,3,4,5], nil, nil], freq * ([-0.05,0.05].midiratio)).sum;
 	Out.ar(0, Pan2.ar(tone * env));
 }).send;
-
-~play_analysis = { |buf_array, synth, start_measure=0, end_measure=32|
-	buf_array.do { |buf, i|
-		Synth.new(synth, [
-			\freq, ~bins[i].midicps,
-			\amp_buf, buf,
-			\dur, ~analysis_period
-		]);
-	};
-};
 
 ~routine_analysis = { |amp_array, synth, start_measure=0, end_measure=40, note_dur=0.5, max_notes=14|
 	r = Routine {
@@ -170,64 +139,4 @@ SynthDef.new(\accordionSwell, {
 }
 )
 
-~play_analysis.value(~accordion_buffers, \tempoPlayer);
-~play_analysis.value(~filtered_buffers, \tempoPlayer);
-~play_analysis.value(~pure_env_buffers, \tempoPlayer);
-~play_analysis.value(~accordion_buffers, \accordionPlayer);
-~play_analysis.value(~pure_env_buffers, \accordionPlayer);
-
 ~routine_analysis.value(~stacked_amps, \accordionSwell, 1, 25, ~analysis_period, 15);
-
-~notes.size
-~stacked_amps.size
-[[1,3],[2,2], [3,1]].sort({|a,b| a[1] < b[1]})
-(
-
-)
-r.stop;
-
-Synth.new(\accordionPlayer, [\freq:440, \avg_amp: 0.5, \max_amp: 1, \peak_time: 0.5, \dur: 1]);
-
-(
-{
-	var centers = notes.midicps;
-	var rq = 1.midiratio - 1;
-	var in = PlayBuf.ar(b.numChannels,b).sum;
-	var amps = centers.collect { |c|
-		Amplitude.kr(BPF.ar(in, c, rq));
-	};
-	var synths;
-	var orig_amps = amps.copy;
-	/*
-	[12, 19, 24, 28].collect { |harmonic|
-		(centers.size-harmonic).do { |i|
-			amps[i+harmonic] = amps[i+harmonic] - orig_amps[i];
-		};
-	};
-
-	(centers.size-1).do { |i|
-		amps[i] = amps[i] - (orig_amps[i+1] * 0.5);
-		amps[i+1] = amps[i+1] - (orig_amps[i] * 0.5);
-	};
-	*/
-	synths = centers.collect { |c, i|
-		var thresh = -40.dbamp;
-		var amp_out = Lag.kr(max(0, amps[i] - thresh), 0.2);
-		Poll.kr(SetResetFF.kr(amps[i] - thresh, (thresh/32) - orig_amps[i]), amps[i].ampdb.round, i);
-		//Poll.kr(SetResetFF.kr(amps[i] - (thresh * 2), amps[i] - thresh), amps[i].ampdb.round, i);
-		//Poll.kr(SetResetFF.kr(amps[i] - (thresh * 4), amps[i] - thresh), amps[i].ampdb.round, i);
-		Poll.kr(SetResetFF.kr(amps[i] - (thresh * 8), orig_amps[i] - thresh), amps[i].ampdb.round, i);
-		Klang.ar(`[[1,2,3,4], nil, nil], c * ([-0.05,0.05].midiratio)).sum * amp_out;
-		//SinOsc.ar(c, 0, amp_out * 0.5);
-	};
-	Pan2.ar(synths.sum);
-}.play
-)
-
-"We".postln
-"Are".postln
-"breath-".postln
-"-ing".postln
-"To-".postln;
-"ge-".postln;
-"-ther".postln;
