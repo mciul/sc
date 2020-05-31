@@ -46,7 +46,7 @@ Set.newFrom([-1, 0, 1].collect(_.squared)).sect([1]);
 ~seconds_per_beat = 60 / ~bpm;
 ~analysis_period = ~seconds_per_beat;
 ~analysis_frames = b.duration / ~seconds_per_beat;
-~harmonics = [0, 12, 19, 24];
+~harmonics = [0, 12, 19, 24, 28];
 ~subharmonics = ~harmonics[1..].neg;
 
 ~sub_indexes = { |root_index|
@@ -111,7 +111,7 @@ SynthDef.new(\accordionPlayer, {
 	var index = PulseCount.kr(trig);
 	var level = Dbufrd.new(amp_buf, index);
 	var env = DemandEnvGen.kr(level, dur);
-	var tone = Klang.ar(`[[1,2,3,4], nil, nil], freq * ([-0.05,0.05].midiratio)).sum;
+	var tone = Klang.ar(`[[1,2,3,4,5], nil, nil], freq * ([-0.05,0.05].midiratio)).sum;
 	Out.ar(0, Pan2.ar(tone * env));
 }).send;
 SynthDef.new(\pureSwell, {
@@ -123,7 +123,7 @@ SynthDef.new(\pureSwell, {
 SynthDef.new(\accordionSwell, {
 	arg freq, amp, dur;
 	var env = EnvGen.kr(Env.triangle(dur), doneAction:2).sqrt * amp;
-	var tone = Klang.ar(`[[1,2,3,4], nil, nil], freq * ([-0.05,0.05].midiratio)).sum;
+	var tone = Klang.ar(`[[1,2,3,4,5], nil, nil], freq * ([-0.05,0.05].midiratio)).sum;
 	Out.ar(0, Pan2.ar(tone * env));
 }).send;
 
@@ -176,7 +176,7 @@ SynthDef.new(\accordionSwell, {
 ~play_analysis.value(~accordion_buffers, \accordionPlayer);
 ~play_analysis.value(~pure_env_buffers, \accordionPlayer);
 
-~routine_analysis.value(~stacked_amps, \accordionSwell, 3, 3, ~analysis_period, 15);
+~routine_analysis.value(~stacked_amps, \accordionSwell, 1, 25, ~analysis_period, 15);
 
 ~notes.size
 ~stacked_amps.size
