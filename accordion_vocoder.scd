@@ -139,4 +139,8 @@ SynthDef.new(\accordionSwell, {
 }
 )
 
+s.prepareForRecord;
+s.record;
+s.stopRecording;
+thisProcess.platform.recordingsDir
 ~routine_analysis.value(~stacked_amps, \accordionSwell, 1, 25, ~analysis_period, 15);
