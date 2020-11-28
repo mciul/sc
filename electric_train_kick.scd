@@ -64,3 +64,56 @@ Synth.new(\gamutKick, [\note, 82]); // Bb5
 Synth.new(\gamutKick, [\note, 84]); // C6
 Synth.new(\gamutKick, [\note, 86]); // D6
 s.stopRecording();
+
+l = Buffer.read( s, "/Users/mciul/Music/samples/train_kick_short_L.aiff" );
+r = Buffer.read( s, "/Users/mciul/Music/samples/train_kick_short_R_filtered.aiff" );
+
+(
+SynthDef.new(\sweepKick, {
+	arg inBuf, outBuf, vel = 100, rq=0.3;
+	var dur = 2; // BufDur.ir(inBuf);
+	var low_note = 36;
+	var high_note = vel.explin(1,127,low_note,105);
+	var freq = EnvGen.kr(Env.linen(0.0, 0, dur)).linlin(0,1,low_note,high_note).midicps;
+	var in = PlayBuf.ar(
+		2, inBuf, BufRateScale.ir(inBuf),
+		doneAction: Done.freeSelf
+	);
+	var fx = RLPF.ar(in, freq, rq);
+	var write = RecordBuf.ar(fx, outBuf, loop: 0);
+	Out.ar(0, fx);
+}).add;
+)
+
+100.linlin(1,127,30,127)
+
+Synth.new(\sweepKick, [\inBuf, ~inBuf.bufnum, \outBuf, ~outBuf.bufnum, \vel, 110] );
+
+(
+~playSample = { |buf| { PlayBuf.ar(buf.numChannels, buf.bufnum, BufRateScale.ir(buf.bufnum))}.play; };
+~writeSamples = Routine({
+	var splits = ~inBuf.path.split($.);
+	var outPrefix = splits.keep(splits.maxIndex).join('.');
+	(7,15..127).do { |velocity|
+		var outPath = outPrefix ++ velocity ++ ".aiff";
+		Synth.new(\sweepKick, [\inBuf, ~inBuf.bufnum, \outBuf, ~outBuf.bufnum, \vel, velocity]);
+		(~inBuf.duration + 0.1).yield;
+		("writing to " ++ outPath).postln;
+		~outBuf.write(outPath);
+	};
+});
+)
+~inBuf = l;
+~inBuf = r;
+~outBuf.free;
+~outBuf = Buffer.alloc( s, ~inBuf.numFrames, ~inBuf.numChannels);
+TempoClock.default.sched(0, ~writeSamples);
+~writeSamples.stop;
+~writeSamples.reset;
+
+a="foo/bar.baz.txt".split($.)
+a.keep(a.maxIndex)
+
+~playSample.value(l);
+~playSample.value(r);
+~playSample.value(~outBuf);
