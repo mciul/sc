@@ -284,7 +284,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	~delayKeys.do({ |other_in|
 		~gateSynths[[other_in, out]].set(\pathcount, pathcount)
 	});
-	~gateSynths[in_out].set(\gate, velocity.min(1));
+	~gateSynths[in_out].set(\amp, amp, \gate, velocity.min(1));
 };
 
 ~controlGates = {
