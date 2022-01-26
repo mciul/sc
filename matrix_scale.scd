@@ -255,7 +255,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	" - ".post;
 	~feedbackPaths[midi].postln;
 	~currentVelocities[midi] = velocity;
-	~feedbackLinks[midi].do({ arg link; ~updateLink.value(link, (velocity > 0))});
+	~feedbackLinks[midi].do({ arg link; ~updateLink.value(link)});
 };
 
 ~linkVelocities = {
@@ -268,7 +268,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	~linkVelocities.value(path).any(_ > 0);
 };
 ~updateLink = {
-	arg in_out, onset;
+	arg in_out;
 	var in, out, velocity;
 	# in, out = in_out;
 	velocity = ~linkVelocities.value(in_out).maxItem;
