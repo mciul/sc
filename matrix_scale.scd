@@ -331,31 +331,37 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		);
 	});
 };
+
+~startServer = {
+	arg mode = \pizz;
+	ServerBoot.add(~makeBusses);
+	ServerQuit.add(~cleanup);
+	s.waitForBoot({
+		"waitForBoot".postln;
+		s.sync;
+
+		~loadSynthDefs.value();
+		// remaining functions
+		ServerTree.add(~makeNodes);
+		ServerTree.add(~mapKeyboard);
+		~setMode.value(mode);
+		s.scope(6,4);
+		s.sync;
+
+		"done".postln;
+	});
+};
+
+if(s.serverBooting || s.hasBooted, {s.quit(onComplete:~startServer)}, ~startServer)
 )
+s.plotTree
+s.quit
+
+~startServer.value()
 
 ~setMode.value(\arco);
 ~setMode.value(\pizz);
 
-s.quit;
-(
-ServerBoot.add(~makeBusses);
-ServerQuit.add(~cleanup);
-s.waitForBoot({
-	"waitForBoot".postln;
-	s.sync;
-
-	~loadSynthDefs.value();
-	// remaining functions
-	ServerTree.add(~makeNodes);
-	ServerTree.add(~mapKeyboard);
-	~setMode.value(\pizz);
-	s.scope(6,4);
-	s.sync;
-
-	"done".postln;
-});
-)
-s.plotTree
 /*
 (44100/64).cpsmidi ~= 76.77
 
