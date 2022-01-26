@@ -70,10 +70,9 @@ r = Buffer.read( s, "/Users/mciul/Music/samples/train_kick_short_R_filtered.aiff
 
 (
 SynthDef.new(\sweepKick, {
-	arg inBuf, outBuf, vel = 100, rq=0.3;
-	var dur = 2; // BufDur.ir(inBuf);
+	arg inBuf, outBuf, vel = 100, dur=0.13, rq=0.4;
 	var low_note = 36;
-	var high_note = vel.explin(1,127,low_note,105);
+	var high_note = vel.explin(1,127,low_note,113);
 	var freq = EnvGen.kr(Env.linen(0.0, 0, dur)).linlin(0,1,low_note,high_note).midicps;
 	var in = PlayBuf.ar(
 		2, inBuf, BufRateScale.ir(inBuf),
@@ -87,7 +86,7 @@ SynthDef.new(\sweepKick, {
 
 100.linlin(1,127,30,127)
 
-Synth.new(\sweepKick, [\inBuf, ~inBuf.bufnum, \outBuf, ~outBuf.bufnum, \vel, 110] );
+Synth.new(\sweepKick, [\inBuf, ~inBuf.bufnum, \outBuf, ~outBuf.bufnum, \rq, 0.4, \dur, 0.15, \vel, 100] );
 
 (
 ~playSample = { |buf| { PlayBuf.ar(buf.numChannels, buf.bufnum, BufRateScale.ir(buf.bufnum))}.play; };
@@ -107,9 +106,9 @@ Synth.new(\sweepKick, [\inBuf, ~inBuf.bufnum, \outBuf, ~outBuf.bufnum, \vel, 110
 ~inBuf = r;
 ~outBuf.free;
 ~outBuf = Buffer.alloc( s, ~inBuf.numFrames, ~inBuf.numChannels);
-TempoClock.default.sched(0, ~writeSamples);
+~writeSamples.reset; TempoClock.default.sched(0, ~writeSamples);
 ~writeSamples.stop;
-~writeSamples.reset;
+
 
 a="foo/bar.baz.txt".split($.)
 a.keep(a.maxIndex)
