@@ -132,9 +132,9 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	}).add;
 
 	SynthDef(\pizzicatoResonator, {
-		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, decaytime=10, pathcount=2;
+		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, decaytime=10;
 		var sig, amp;
-		amp = (-60 * delaytime/(decaytime * pathcount)).dbamp;
+		amp = (-60 * delaytime/(decaytime)).dbamp;
 		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
 		sig = In.ar(in);
 		sig = LPF.ar(sig, 10000);
@@ -270,23 +270,21 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~updateLink = {
 	arg in_out;
 	var in, out, velocity;
+	var amp, pathcount;
 	# in, out = in_out;
 	velocity = ~linkVelocities.value(in_out).maxItem;
-	if (velocity == 0,
-		{
-				~gateSynths[in_out].set(\gate, 0);
-		},
-		{
-			var amp, pathcount;
-			pathcount = ~delayKeys.collect([_, out]).count(~pathUsed.value(_));
-			amp = (velocity.linlin(0,127,0,1));
-			~delaySynths[out].set(\pathcount, pathcount);
-			~gateSynths[in_out].set(\amp, amp, \gate, 1);
-			~delayKeys.do({ |other_in|
-				~gateSynths[[other_in, out]].set(\pathcount, pathcount)
-			});
-		}
-	);
+	pathcount = ~delayKeys.collect([_, out]).count(~pathUsed.value(_)).max(1);
+	amp = (velocity.linlin(0,127,0,1));
+	"link ".post;
+	in_out.post;
+	" velocity=".post;
+	velocity.post;
+	" pathcount=".post;
+	pathcount.postln;
+	~delayKeys.do({ |other_in|
+		~gateSynths[[other_in, out]].set(\pathcount, pathcount)
+	});
+	~gateSynths[in_out].set(\gate, velocity.min(1));
 };
 
 ~controlGates = {
@@ -337,7 +335,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 ~setMode.value(\arco);
 ~setMode.value(\pizz);
-s.scope(6,4);
+
 s.quit;
 (
 ServerBoot.add(~makeBusses);
@@ -351,14 +349,13 @@ s.waitForBoot({
 	ServerTree.add(~makeNodes);
 	ServerTree.add(~mapKeyboard);
 	~setMode.value(\pizz);
-
+	s.scope(6,4);
 	s.sync;
 
 	"done".postln;
 });
 )
 s.plotTree
-
 /*
 (44100/64).cpsmidi ~= 76.77
 
