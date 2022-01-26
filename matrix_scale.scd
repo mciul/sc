@@ -174,7 +174,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		// but it's not consistent- I'm not sure if there's a formula for predicting
 		// the correct value
 		//
-		attenuate = Slew.kr(pathcount, 20, 6).reciprocal;
+		attenuate = Slew.kr(pathcount, 20, 8).reciprocal;
 		sig = InFeedback.ar(in) * attenuate * env + pluck;
 		Out.ar(out, sig);
 	}).add;
