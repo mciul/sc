@@ -271,24 +271,18 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	arg path;
 	~linkVelocities.value(path).any(_ > 0);
 };
-
 ~updateLink = {
 	arg in_out, onset;
-	var in, out, velocities, velocity;
+	var in, out, velocity;
 	# in, out = in_out;
-	velocities = ~linkVelocities.value(in_out);
-	velocity = velocities.maxItem;
+	velocity = ~linkVelocities.value(in_out).maxItem;
 	if (velocity == 0,
 		{
 				~gateSynths[in_out].set(\gate, 0);
 		},
 		{
 			var amp, pathcount;
-			pathcount = ~delayKeys.collect(
-				[_, out];
-			).count(
-				~pathUsed.value(_);
-			);
+			pathcount = ~delayKeys.collect([_, out]).count(~pathUsed.value(_));
 			amp = (velocity.linlin(0,127,0,1));
 			~delaySynths[out].set(\pathcount, pathcount);
 			~gateSynths[in_out].set(\amp, amp, \gate, 1);
