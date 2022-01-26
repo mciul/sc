@@ -20,6 +20,11 @@
 };
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~delayKeys = [\eighth, \sixth, \fifth, \quarter, \third, \half];
+~delayPairs = ~delayKeys.collect({ |in|
+	~delayKeys.collect({ |out|
+		[in, out]
+	})
+}).flatten;
 ~delayTimes = Dictionary.newFrom(
 	[~delayKeys, (f * [8,6,5,4,3,2]).reciprocal].flop.flatten;
 );
@@ -56,6 +61,16 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~feedbackPaths[~tonic-7] = [\half, \third, \quarter, \fifth, \sixth]; // 20/29 f = tonic -6.432634802882516 semitone
 ~feedbackPaths[~tonic-8] = [\half, \third, \quarter, \fifth, \sixth, \eighth]; // 40/63 f = tonic -7.8642219433506515 semitone
 
+~mapToDict = {
+	arg keys, value_func;
+	Dictionary.newFrom(
+		keys.collect({
+			arg key, i;
+			[ key, value_func.value(key, i) ]
+		}).as(Array).flatten
+	);
+};
+
 ~feedbackLinks = ~feedbackPaths.collect({
 	arg origins, notenum;
 	var outs;
@@ -66,20 +81,10 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	});
 });
 
-~linkUsers = Dictionary.new();
-~delayKeys.do({
-	arg source;
-	~delayKeys.do({
-		arg dest;
-		var link;
-		link = [source, dest];
-		~linkUsers.add(
-			link -> (0..~feedbackLinks.size-1).select({
-				arg i;
-				~feedbackLinks[i].any({ |other| other == link });
-			})
-		);
-	});
+~linkUsers = ~mapToDict.value(~delayPairs, { |link|
+	(0..~feedbackLinks.size-1).select({ |i|
+		~feedbackLinks[i].any({ |other| other == link });
+	})
 });
 
 ~currentVelocities = Array.fill(~feedbackLinks.size, 0);
@@ -87,20 +92,18 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 ~out = 0;
 ~makeBusses = {
-	~bus = Dictionary.new;
-	~bus.add(\feedback -> Bus.audio(s, ~delayKeys.size));
-	~bus.add(\res -> Bus.audio(s,~delayKeys.size));
-	~bus.add(\mixOut -> Bus.audio(s, ~delayKeys.size));
-	~busAt = Dictionary.new();
-	~bus.keys.do({
-		arg busKey;
-		~busAt.add(busKey -> Dictionary.new());
-		~delayKeys.do({
-			arg delayKey, i;
-			~busAt[busKey].add(delayKey -> (~bus[busKey].index + i));
+	~bus = Dictionary.newFrom([
+		\feedback, Bus.audio(s, ~delayKeys.size),
+		\res, Bus.audio(s,~delayKeys.size),
+		\mixOut, Bus.audio(s, ~delayKeys.size)
+	]);
+	~busAt = ~mapToDict.value(~bus.keys, { |busKey|
+		~mapToDict.value(~delayKeys, { |delayKey, i|
+			~bus[busKey].index + i
 		});
 	});
 };
+
 
 ~cleanup = {
 	s.newBusAllocators;
@@ -189,16 +192,6 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		sig = Limiter.ar(sig);
 		Out.ar(out, sig);
 	}).add;
-};
-
-~mapToDict = {
-	arg keys, value_func;
-	Dictionary.newFrom(
-		keys.collect({
-			arg key, i;
-			[ key, value_func.value(key, i) ]
-		}).flatten
-	);
 };
 
 ~makeNodes = {
@@ -384,6 +377,7 @@ s.waitForBoot({
 	"done".postln;
 });
 )
+s.plotTree
 
 /*
 (44100/64).cpsmidi ~= 76.77
