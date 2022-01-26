@@ -214,27 +214,23 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 				~group[\feedback]
 			);
 		});
-		~delaySynths = ~mapToDict.value(
-			~delayKeys,
-			{
-				arg key;
-				"delaySynth[".post;
-				key.post;
-				"] reading from ".post;
-				~busAt[\res][key].post;
-				" writing to ".post;
-				~busAt[\feedback][key].postln;
-				Synth.new(~resonatorSynth,
-					[
-						\in, ~busAt[\res][key],
-						\feedback_out, ~busAt[\feedback][key],
-						\out, ~busAt[\mixOut][key],
-						\delaytime, ~delayTimes[key];
-					],
-					~group[\res]
-				);
-			}
-		);
+		~delaySynths = ~mapToDict.value(~delayKeys, { |key|
+			"delaySynth[".post;
+			key.post;
+			"] reading from ".post;
+			~busAt[\res][key].post;
+			" writing to ".post;
+			~busAt[\feedback][key].postln;
+			Synth.new(~resonatorSynth,
+				[
+					\in, ~busAt[\res][key],
+					\feedback_out, ~busAt[\feedback][key],
+					\out, ~busAt[\mixOut][key],
+					\delaytime, ~delayTimes[key];
+				],
+				~group[\res]
+			);
+		});
 		~outSynth = Synth.new(\mixOut, [\out, ~out, \in, ~bus[\mixOut].index], ~group[\mixOut]);
 		~noiseSynth = Synth.head(~group[\res], \noiseFloor, [\out, ~bus[\feedback].index]);
 	});
