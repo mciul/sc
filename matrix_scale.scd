@@ -202,30 +202,18 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		~group.add(\res -> Group.new);
 		~group.add(\feedback -> Group.before(~group[\res]));
 		~group.add(\mixOut -> Group.after(~group[\res]));
-		~gateSynths = Dictionary.newFrom(
-			~delayKeys.collect({
-				arg in;
-				[
-					in,
-					Dictionary.newFrom(
-						~delayKeys.collect({
-							arg out;
-							[
-								out,
-								Synth.new(~feedbackSynth,
-									[
-										\in, ~busAt[\feedback][in],
-										\out, ~busAt[\res][out],
-										\gate, 0
-									],
-									~group[\feedback]
-								);
-							]
-						}).flatten
-					)
-				]
-			}).flatten
-		);
+		~gateSynths = ~mapToDict.value(~delayPairs, { |in_out|
+			var in, out;
+			# in, out = in_out;
+			Synth.new(
+				~feedbackSynth, [
+					\in, ~busAt[\feedback][in],
+					\out, ~busAt[\res][out],
+					\gate, 0
+				],
+				~group[\feedback]
+			);
+		});
 		~delaySynths = ~mapToDict.value(
 			~delayKeys,
 			{
@@ -292,7 +280,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	velocity = velocities.maxItem;
 	if (velocity == 0,
 		{
-			~gateSynths[in][out].set(\gate, 0);
+				~gateSynths[in_out].set(\gate, 0);
 		},
 		{
 			var amp, pathcount;
@@ -303,8 +291,8 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 			);
 			amp = (velocity.linlin(0,127,0,1));
 			~delaySynths[out].set(\pathcount, pathcount);
-			~gateSynths[in][out].set(\amp, amp, \gate, 1);
-			~gateSynths.do({ arg synths; synths[out].set(\pathcount, pathcount)});
+			~gateSynths[in_out].set(\amp, amp, \gate, 1);
+			~gateSynths.values.do({ |synth| synth.set(\pathcount, pathcount)});
 		}
 	);
 };
