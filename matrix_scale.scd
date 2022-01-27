@@ -152,8 +152,12 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	}).add;
 
 	SynthDef(\pizzicatoFeedback, {
-		arg in=0, out=0, amp=0.3, gate=0, pathcount=1;
-		var pluckEnv, pluck, sig, env, attenuate;
+		arg in=0, out=0, amp=0.3, gate=0, depth=0, pathcount=1;
+		var pluckEnv, pluck, sig, env, tremelo, attenuate;
+		tremelo = SinOsc.kr(
+			freq: LFNoise1.kr(1).range(6,9),
+			mul: LFNoise1.kr(1).range(-1, -0.5);
+		) * depth;
 		pluckEnv = EnvGen.ar(Env.triangle((0.25/f), amp.linlin(0,1,0.1,1)), gate);
 		pluck = HPF.ar(BrownNoise.ar(pluckEnv), 40);
 		env = EnvGen.ar(
@@ -166,7 +170,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		// the correct value
 		//
 		attenuate=Lag.kr(pathcount.reciprocal, 0.3/pathcount);
-		sig = InFeedback.ar(in) * attenuate * env + pluck;
+		sig = InFeedback.ar(in) * env * attenuate * tremelo.dbamp + pluck;
 		Out.ar(out, sig);
 	}).add;
 
@@ -288,7 +292,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	});
 	if (key == \mod, {
 		~group[\res].set(\depth, val * 1.5);
-		~group[\feedback].set(\depth, val * 12);
+		~group[\feedback].set(\depth, (val-0.75).max(0) * 24);
 	});
 };
 
