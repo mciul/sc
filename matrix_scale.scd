@@ -123,10 +123,10 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 			mul: LFNoise1.kr(1).range(0.5, 1);
 		) * depth;
 		delaytime = delaytime / vibrato.midiratio;
-		sig = In.ar(in).madd(gain).softclip;
+		sig = In.ar(in).madd(gain);
 		sig = LPF.ar(sig, 10000);
-		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp);
-		sig = LeakDC.ar(sig);
+		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp).fold(-1,1);
+		sig = LeakDC.ar(sig, coef:0.9995);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
 	}).add;
@@ -139,6 +139,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		sig = In.ar(in);
 		sig = LPF.ar(sig, 10000);
 		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp).fold(-1,1);
+		sig = LeakDC.ar(sig, coef:0.9995);
 		Out.ar(feedback_out, sig);
 		Out.ar(out, sig);
 	}).add;
