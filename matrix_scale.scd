@@ -132,10 +132,15 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	}).add;
 
 	SynthDef(\pizzicatoResonator, {
-		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, decaytime=10;
-		var sig, amp;
+		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, depth=0, decaytime=10;
+		var sig, amp, vibrato;
 		amp = (-60 * delaytime/(decaytime)).dbamp;
 		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
+		vibrato = SinOsc.kr(
+			freq: LFNoise1.kr(1).range(6,9),
+			mul: LFNoise1.kr(1).range(0.5, 1);
+		) * depth;
+		delaytime = delaytime / vibrato.midiratio;
 		sig = In.ar(in);
 		sig = LPF.ar(sig, 10000);
 		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp).fold(-1,1);
