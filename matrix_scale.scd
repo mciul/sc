@@ -1,18 +1,18 @@
 (
 ~highestNote = 76 - 4; // 76 is the highest note available with default control raite
 ~tonic = ~highestNote-36;
-~resonatorSynth = \arcoResonator;
+~resonatorSynth = \resonator;
 ~feedbackSynth = \arcoFeedback;
 ~setMode = {
 	arg mode;
 	~loadSynthDefs.value();
 	if (mode == \arco,
 		{
-			~resonatorSynth = \arcoResonator;
+			~resonatorSynth = \resonator;
 			~feedbackSynth = \arcoFeedback;
 		},
 		{
-			~resonatorSynth = \pizzicatoResonator;
+			~resonatorSynth = \resonator;
 			~feedbackSynth = \pizzicatoFeedback;
 		}
 	);
@@ -114,25 +114,8 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 ~loadSynthDefs = {
 	//synthdefs
-	SynthDef(\arcoResonator, {
-		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, depth=0, decaytime=10;
-		var sig, vibrato, amp;
-		amp = (-60 * delaytime/(decaytime)).dbamp;
-		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
-		vibrato = SinOsc.kr(
-			freq: LFNoise1.kr(1).range(6,9),
-			mul: LFNoise1.kr(1).range(0.5, 1);
-		) * depth;
-		delaytime = delaytime / vibrato.midiratio;
-		sig = In.ar(in);
-		sig = LPF.ar(sig, 10000);
-		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp).fold(-1,1);
-		sig = LeakDC.ar(sig, coef:0.9995);
-		Out.ar(feedback_out, sig);
-		Out.ar(out, sig);
-	}).add;
 
-	SynthDef(\pizzicatoResonator, {
+	SynthDef(\resonator, {
 		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, depth=0, decaytime=10;
 		var sig, amp, vibrato;
 		amp = (-60 * delaytime/(decaytime)).dbamp;
