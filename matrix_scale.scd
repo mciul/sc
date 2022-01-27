@@ -134,8 +134,8 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	}).add;
 
 	SynthDef(\arcoFeedback, {
-		arg in=0, out=0, amp=0.3, gate=0, depth=0;
-		var sig, env, sustain, tremelo;
+		arg in=0, out=0, amp=0.3, gate=0, depth=0, pathcount=1;
+		var sig, env, sustain, tremelo, attenuate;
 		sustain = 0.7;
 		tremelo = SinOsc.kr(
 			freq: LFNoise1.kr(1).range(6,9),
@@ -146,7 +146,8 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 			gate,
 			doneAction:0
 		);
-		sig = InFeedback.ar(in) * env * amp * tremelo.dbamp * 4/sustain;
+		attenuate=Lag.kr(pathcount.reciprocal, 0.3/pathcount);
+		sig = InFeedback.ar(in) * env * amp * attenuate * tremelo.dbamp * 4/sustain;
 		Out.ar(out, sig);
 	}).add;
 
