@@ -135,19 +135,21 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 	SynthDef(\arcoFeedback, {
 		arg in=0, out=0, amp=0.3, gate=0, depth=0, pathcount=1;
-		var sig, env, sustain, tremelo, attenuate;
-		sustain = 0.7;
+		var sig, env, overshoot, tremelo, attenuate;
+		overshoot = 1.42;
+
 		tremelo = SinOsc.kr(
 			freq: LFNoise1.kr(1).range(6,9),
 			mul: LFNoise1.kr(1).range(-1, -0.5);
 		) * depth;
 		env = EnvGen.ar(
-			Env.adsr(decayTime: 0.2, sustainLevel:sustain, releaseTime:0.3),
+			Env.adsr(decayTime: 0.2, sustainLevel:overshoot.reciprocal, releaseTime:0.3),
 			gate,
+			levelScale: overshoot,
 			doneAction:0
 		);
 		attenuate=Lag.kr(pathcount.reciprocal, 0.3/pathcount);
-		sig = InFeedback.ar(in) * env * amp * attenuate * tremelo.dbamp * 4/sustain;
+		sig = InFeedback.ar(in) * env * amp * attenuate * tremelo.dbamp * 4;
 		Out.ar(out, sig);
 	}).add;
 
