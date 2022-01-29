@@ -1,5 +1,6 @@
 (
-~highestNote = 76 - 4; // 76 is the highest note available with default control raite
+/*********************************** DATA ***********************************/
+~highestNote = 76 - 4; // 76 = highest possible note w/ default control rate
 ~tonic = ~highestNote-36;
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~delayKeys = [\eighth, \sixth, \fifth, \quarter, \third, \half];
@@ -58,12 +59,10 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	);
 };
 
-~feedbackLinks = ~feedbackPaths.collect({
-	arg origins, notenum;
+~feedbackLinks = ~feedbackPaths.collect({ |origins, notenum|
 	var outs;
 	outs = origins.rotate(-1);
-	origins.collect({
-		arg in, i;
+	origins.collect({ |in, i|
 		[in, outs[i]]
 	});
 });
@@ -76,6 +75,80 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 ~currentVelocities = Array.fill(~feedbackLinks.size, 0);
 
+/********************************** SYNTHS **********************************/
+
+~loadSynthDefs = {
+	//synthdefs
+
+	SynthDef(\resonator, {
+		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0,
+		delaytime=440.reciprocal, depth=0, decaytime=10;
+		var sig, amp, vibrato;
+		amp = (-60 * delaytime/(decaytime)).dbamp;
+		// default latency is 1/ControlRate
+		latency = latency.max(ControlRate.ir.reciprocal);
+		vibrato = SinOsc.kr(
+			freq: LFNoise1.kr(1).range(6,9),
+			mul: LFNoise1.kr(1).range(0.5, 1);
+		) * depth;
+		delaytime = delaytime / vibrato.midiratio;
+		sig = In.ar(in);
+		sig = LPF.ar(sig, 10000);
+		sig = DelayL.ar(
+			sig, maxdelaytime, (delaytime - latency), amp
+		).fold(-1,1);
+		sig = LeakDC.ar(sig, coef:0.9995);
+		Out.ar(feedback_out, sig);
+		Out.ar(out, sig);
+	}).add;
+
+	SynthDef(\feedback, {
+		arg in=0, out=0, amp=0.3, gate=0, depth=0, pathcount=1,
+		max_overdrive=1;
+		var sig, env, overshoot, tremelo, attenuate;
+		overshoot= max_overdrive.linexp(1,2.5,1000,4);
+		tremelo = SinOsc.kr(
+			freq: LFNoise1.kr(1).range(6,9),
+			mul: LFNoise1.kr(1).range(-1, -0.5);
+		) * depth;
+		env = EnvGen.ar(
+			Env.adsr(
+				attackTime: 0.125/f,
+				decayTime: 0.125/f,
+				sustainLevel:overshoot.reciprocal,
+				releaseTime:0.3
+			),
+			gate,
+			levelScale: overshoot,
+			doneAction:0
+		);
+		attenuate = Slew.kr(pathcount.reciprocal, 2.5, 10*pathcount);
+		sig = (
+			InFeedback.ar(in)
+			* env
+			* amp.linlin(1/64, 1, 1, max_overdrive)
+			* attenuate
+			* tremelo.dbamp
+		);
+		Out.ar(out, sig);
+	}).add;
+
+	SynthDef(\noiseFloor, {
+		arg out=0, amp=0.001;
+		Out.ar(out, HPF.ar(BrownNoise.ar(amp!~delayKeys.size), 40));
+	}).add;
+
+	SynthDef(\mixOut, {
+		arg in, out;
+		var sig;
+		sig = In.ar(in, ~delayKeys.size);
+		sig = Splay.ar(LeakDC.ar(sig));
+		sig = Compander.ar(sig, sig, thresh: 0.1, slopeAbove:0.2, mul:0.5);
+		Out.ar(out, sig);
+	}).add;
+};
+
+/******************************* SERVER SETUP *******************************/
 
 ~out = 0;
 ~makeBusses = {
@@ -99,60 +172,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	ServerQuit.removeAll;
 };
 
-~loadSynthDefs = {
-	//synthdefs
-
-	SynthDef(\resonator, {
-		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0, delaytime=440.reciprocal, depth=0, decaytime=10;
-		var sig, amp, vibrato;
-		amp = (-60 * delaytime/(decaytime)).dbamp;
-		latency = latency.max(ControlRate.ir.reciprocal); // I'd make 1/ControlRate the default if I could
-		vibrato = SinOsc.kr(
-			freq: LFNoise1.kr(1).range(6,9),
-			mul: LFNoise1.kr(1).range(0.5, 1);
-		) * depth;
-		delaytime = delaytime / vibrato.midiratio;
-		sig = In.ar(in);
-		sig = LPF.ar(sig, 10000);
-		sig = DelayL.ar(sig, maxdelaytime, (delaytime - latency), amp).fold(-1,1);
-		sig = LeakDC.ar(sig, coef:0.9995);
-		Out.ar(feedback_out, sig);
-		Out.ar(out, sig);
-	}).add;
-
-	SynthDef(\feedback, {
-		arg in=0, out=0, amp=0.3, gate=0, depth=0, pathcount=1, max_overdrive=1;
-		var sig, env, overshoot, tremelo, attenuate;
-		overshoot= max_overdrive.linexp(1,2.5,1000,4);
-		tremelo = SinOsc.kr(
-			freq: LFNoise1.kr(1).range(6,9),
-			mul: LFNoise1.kr(1).range(-1, -0.5);
-		) * depth;
-		env = EnvGen.ar(
-			Env.adsr(attackTime: 0.125/f, decayTime: 0.125/f, sustainLevel:overshoot.reciprocal, releaseTime:0.3),
-			gate,
-			levelScale: overshoot,
-			doneAction:0
-		);
-		attenuate = Slew.kr(pathcount.reciprocal, 2.5, 10*pathcount);
-		sig = InFeedback.ar(in) * env * amp.linlin(1/64, 1, 1, max_overdrive) * attenuate * tremelo.dbamp;
-		Out.ar(out, sig);
-	}).add;
-
-	SynthDef(\noiseFloor, {
-		arg out=0, amp=0.001;
-		Out.ar(out, HPF.ar(BrownNoise.ar(amp!~delayKeys.size), 40));
-	}).add;
-
-	SynthDef(\mixOut, {
-		arg in, out;
-		var sig;
-		sig = In.ar(in, ~delayKeys.size);
-		sig = Splay.ar(LeakDC.ar(sig));
-		sig = Compander.ar(sig, sig, thresh: 0.1, slopeAbove:0.2, mul:0.5);
-		Out.ar(out, sig);
-	}).add;
-};
+/****************************** NODE TREE SETUP *****************************/
 
 ~makeNodes = {
 	s.bind({
@@ -189,10 +209,16 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 				~group[\res]
 			);
 		});
-		~outSynth = Synth.new(\mixOut, [\out, ~out, \in, ~bus[\mixOut].index], ~group[\mixOut]);
-		~noiseSynth = Synth.head(~group[\res], \noiseFloor, [\out, ~bus[\feedback].index]);
+		~outSynth = Synth.new(
+			\mixOut, [\out, ~out, \in, ~bus[\mixOut].index], ~group[\mixOut]
+		);
+		~noiseSynth = Synth.head(
+			~group[\res], \noiseFloor, [\out, ~bus[\feedback].index]
+		);
 	});
 };
+
+/******************************* MIDI CONTROLS ******************************/
 
 ~updateLinks = {
 	arg midi, velocity=0;
@@ -222,7 +248,12 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	var amp, pathcount;
 	# in, out = in_out;
 	velocity = ~linkVelocities.value(in_out).maxItem;
-	pathcount = ~delayKeys.collect([_, out]).count(~pathUsed.value(_)).max(1);
+	pathcount = (
+		~delayKeys
+		.collect([_, out])
+		.count(~pathUsed.value(_))
+		.max(1)
+	);
 	amp = (velocity.linlin(0,127,0,1));
 	"link ".post;
 	in_out.post;
@@ -239,9 +270,10 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~controlGates = {
 	arg key, val;
 	if (key == \bend, {
-		~delayKeys.do({
-			arg delayKey;
-			~delaySynths[delayKey].set(\delaytime, ~delayTimes[delayKey] / val.midiratio);
+		~delayKeys.do({ |delayKey|
+			~delaySynths[delayKey].set(
+				\delaytime, ~delayTimes[delayKey] / val.midiratio
+			);
 		})
 	});
 	if (key == \mod, {
@@ -294,6 +326,8 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	~setOverdrive.value(overdrive[mode]);
 };
 
+/********************************** RUNTIME *********************************/
+
 ~startServer = {
 	arg mode = \pizz;
 	ServerBoot.add(~makeBusses);
@@ -314,12 +348,15 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	});
 };
 
-if(s.serverBooting || s.hasBooted, {s.quit(onComplete:~startServer)}, ~startServer)
+if(
+	s.serverBooting || s.hasBooted,
+	{s.quit(onComplete:~startServer)},
+	~startServer
+);
 )
+
 s.plotTree
 s.quit
-
-~startServer.value()
 
 ~setMode.value(\arco);
 ~setMode.value(\pizz);
@@ -393,4 +430,3 @@ full version:
 ~feedbackPaths[~tonic-7] = [\half, \third, \quarter, \fifth, \sixth] // 20/29f = tonic + -6.432634802882516 semitone
 ~feedbackPaths[~tonic-8] = [\half, \third, \quarter, \fifth, \sixth, \eighth] // 40/63f = tonic + -7.8642219433506515 semitone
 */
-(20/9).ratiomidi.mod(12)
