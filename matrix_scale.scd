@@ -112,20 +112,6 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	ServerQuit.removeAll;
 };
 
-~velocityCurve = { |amp, c, unity_amp=(1/127)|
-	// convert an "amplitude" between 0 and 1 to an overdrive factor
-	// When amp=0, overdrive=0
-	// When amp=unity_amp, overdrive=1
-	// When amp=1, overdrive = some number larger than 1, dependent on c
-	// The curve is logarithmic, ensuring constant increase that doesn't flatten too much
-	// When c=0.002, max overdrive is around 3.9
-	// When c=0.001, it's around 3.2
-	// To increase it much more, add zeros
-	var rk;
-	rk = log(unity_amp+c) - log(c);
-	(log(amp + c) - log(c)) / rk
-};
-
 ~loadSynthDefs = {
 	//synthdefs
 
@@ -247,18 +233,8 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	});
 };
 
-~lowestNoteUsing = {
-	arg delayKey;
-	(0..~currentVelocities.size-1).select({
-		arg midi;
-		(~currentVelocities[midi] > 0) &&
-		~feedbackPaths[midi].includes(delayKey);
-	}).minItem;
-};
-
 ~updateLinks = {
 	arg midi, velocity=0;
-	var lowestnote;
 	"note ".post;
 	midi.post;
 	", velocity ".post;
