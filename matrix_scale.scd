@@ -1,9 +1,6 @@
 (
 ~highestNote = 76 - 4; // 76 is the highest note available with default control raite
 ~tonic = ~highestNote-36;
-~resonatorSynth = \resonator;
-~feedbackSynth = \feedback;
-
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~delayKeys = [\eighth, \sixth, \fifth, \quarter, \third, \half];
 ~delayPairs = ~delayKeys.collect({ |in|
@@ -159,8 +156,6 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 };
 
 ~makeNodes = {
-	"makeNodes ".post;
-	~feedbackSynth.postln;
 	s.bind({
 		~group = Dictionary.new;
 		~group.add(\res -> Group.new);
@@ -170,7 +165,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 			var in, out;
 			# in, out = in_out;
 			Synth.new(
-				~feedbackSynth, [
+				\feedback, [
 					\in, ~busAt[\feedback][in],
 					\out, ~busAt[\res][out],
 					\gate, 0
@@ -185,7 +180,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 			~busAt[\res][key].post;
 			" writing to ".post;
 			~busAt[\feedback][key].postln;
-			Synth.new(~resonatorSynth,
+			Synth.new(\resonator,
 				[
 					\in, ~busAt[\res][key],
 					\feedback_out, ~busAt[\feedback][key],
