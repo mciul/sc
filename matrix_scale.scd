@@ -112,6 +112,20 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	ServerQuit.removeAll;
 };
 
+~velocityCurve = { |amp, c, unity_amp=(1/127)|
+	// convert an "amplitude" between 0 and 1 to an overdrive factor
+	// When amp=0, overdrive=0
+	// When amp=unity_amp, overdrive=1
+	// When amp=1, overdrive = some number larger than 1, dependent on c
+	// The curve is logarithmic, ensuring constant increase that doesn't flatten too much
+	// When c=0.002, max overdrive is around 3.9
+	// When c=0.001, it's around 3.2
+	// To increase it much more, add zeros
+	var rk;
+	rk = log(unity_amp+c) - log(c);
+	(log(amp + c) - log(c)) / rk
+};
+
 ~loadSynthDefs = {
 	//synthdefs
 
@@ -134,7 +148,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	}).add;
 
 	SynthDef(\arcoFeedback, {
-		arg in=0, out=0, amp=0.3, gate=0, depth=0, pathcount=1;
+		arg in=0, out=0, amp=0.3, gate=0, depth=0, pathcount=1, max_overdrive=2.5;
 		var sig, env, overshoot, tremelo, attenuate;
 		overshoot = 1.42;
 
@@ -149,7 +163,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 			doneAction:0
 		);
 		attenuate=Lag.kr(pathcount.reciprocal, 0.3/pathcount);
-		sig = InFeedback.ar(in) * env * amp * attenuate * tremelo.dbamp * 4;
+		sig = InFeedback.ar(in) * env * amp.linlin(0, 1, 0.9, max_overdrive) * attenuate * tremelo.dbamp;
 		Out.ar(out, sig);
 	}).add;
 
@@ -187,7 +201,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		sig = In.ar(in, ~delayKeys.size);
 		sig = Splay.ar(LeakDC.ar(sig));
 		sig = Limiter.ar(sig);
-		Out.ar(out, sig);
+		Out.ar(out, sig * 0.5);
 	}).add;
 };
 
@@ -264,6 +278,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	arg path;
 	~linkVelocities.value(path).any(_ > 0);
 };
+
 ~updateLink = {
 	arg in_out;
 	var in, out, velocity;
@@ -358,6 +373,9 @@ s.quit
 
 ~setMode.value(\arco);
 ~setMode.value(\pizz);
+
+~velocityCurve.value(0.1, 0.0001,unity_amp:1/16);
+log(2.7)
 
 /*
 (44100/64).cpsmidi ~= 76.77
