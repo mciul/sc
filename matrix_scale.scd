@@ -21,10 +21,14 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~feedbackPaths[~tonic+28] = [\fifth]; // 5f = tonic + 27.863137138648348 semitone
 ~feedbackPaths[~tonic+24] = [\quarter]; // 4f = tonic + 24.0 semitone
 ~feedbackPaths[~tonic+21] = [\sixth, \eighth]; // 24/7 f = tonic + 21.331290943962625 semitone
+~feedbackPaths[~tonic+20] = [\fifth, \eighth]; // 40/13f = tonic + 19.457860520955244 semitone
 ~feedbackPaths[~tonic+19] = [\third]; // 3f = tonic + 19.019550008653876 semitone
+~feedbackPaths[~tonic+18] = [\fifth, \sixth]; // 30/11f = tonic + 17.36950772365466 semitone
 ~feedbackPaths[~tonic+17] = [\quarter, \eighth]; // 8/3 f = tonic + 16.980449991346124 semitone
 ~feedbackPaths[~tonic+15] = [\quarter, \sixth]; // 12/5 f = tonic + 15.156412870005525 semitone
 ~feedbackPaths[~tonic+14] = [\quarter, \fifth]; // 20/9 f = tonic + 13.8240371213406 semitone
+~feedbackPaths[~tonic+13] = [\third, \eighth]; // 24/11f = tonic + 13.50637058500631 semitone
+//~feedbackPaths[~tonic+13] = [\fifth, \sixth, \eighth]; // 120/59f = tonic + 12.29097055496013 semitone
 ~feedbackPaths[~tonic+12] = [\half]; // 2f = tonic + 12.0 semitone
 ~feedbackPaths[~tonic+11] = [\third, \fifth]; // 15/8 f = tonic + 10.88268714730222 semitone
 //~feedbackPaths[~tonic+10] = [\quarter, \sixth, \eighth]; // 24/13f = tonic + 10.614273390960768 semitone
@@ -309,7 +313,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		ServerTree.add(~makeNodes);
 		ServerTree.add(~mapKeyboard);
 		s.freeAll;
-		s.scope(6,4);
+		s.scope(6,4, bufsize:s.sampleRate*~delayTimes[\half]);
 		s.sync;
 
 		"done".postln;
