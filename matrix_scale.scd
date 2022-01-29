@@ -50,6 +50,12 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~feedbackPaths[~tonic-7] = [\half, \third, \quarter, \fifth, \sixth]; // 20/29 f = tonic -6.432634802882516 semitone
 ~feedbackPaths[~tonic-8] = [\half, \third, \quarter, \fifth, \sixth, \eighth]; // 40/63 f = tonic -7.8642219433506515 semitone
 
+~controlSettings = Dictionary.newFrom([
+	\bend, 0,
+	\mod, 0,
+	\overdrive, 1
+]);
+
 ~mapToDict = {
 	arg keys, value_func;
 	Dictionary.newFrom(
@@ -187,7 +193,9 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 				\feedback, [
 					\in, ~busAt[\feedback][in],
 					\out, ~busAt[\res][out],
-					\gate, 0
+					\gate, 0,
+					\depth, (~controlSettings[\mod]-0.75).max(0) * 24,
+					\max_overdrive, ~controlSettings[\overdrive]
 				],
 				~group[\feedback]
 			);
@@ -204,7 +212,8 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 					\in, ~busAt[\res][key],
 					\feedback_out, ~busAt[\feedback][key],
 					\out, ~busAt[\mixOut][key],
-					\delaytime, ~delayTimes[key];
+					\delaytime, ~delayTimes[key] * ~controlSettings[\bend].midiratio,
+					\depth, ~controlSettings[\mod] * 1.5
 				],
 				~group[\res]
 			);
@@ -217,6 +226,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		);
 	});
 };
+
 
 /******************************* MIDI CONTROLS ******************************/
 
@@ -267,12 +277,6 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	~gateSynths[in_out].set(\amp, amp, \gate, velocity.min(1));
 };
 
-~controlSettings = Dictionary.newFrom([
-	\bend, 0,
-	\mod, 0,
-	\overdrive, 1
-]);
-
 ~controls = Dictionary.newFrom([
 	\bend, { |val|
 		~delayKeys.do({ |delayKey|
@@ -322,6 +326,35 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	});
 };
 
+/******************************* GUI CONTROLS *******************************/
+
+~makeExpControl = { |w, key, lo, hi|
+	var slider, numberBox;
+	slider = Slider(w, 60@400);
+	numberBox = NumberBox(w, 60@30)
+	.clipLo_(lo)
+	.clipHi_(hi)
+	.decimals_(4-log10(hi - lo).ceil);
+	StaticText(w, 60@30)
+	.string_(key)
+	.align(\center);
+	slider.action_({ |obj|
+		numberBox.valueAction_(obj.value.linexp(0,1,lo,hi));
+	});
+	numberBox.action_({ |obj|
+		~setControl.value(key, obj.value);
+		slider.value_(obj.value.explin(lo,hi,0,1));
+	});
+	numberBox.valueAction_(~controlSettings[key]);
+};
+
+Window.closeAll;
+w = Window.new("Controls", Rect(Window.screenBounds.width - 300,100,160,600))
+.front
+.alwaysOnTop_(true);
+w.view.decorator_(FlowLayout(w.bounds, 50@30,15@15));
+~makeExpControl.value(w, \overdrive, 1, 1.8);
+
 ~setMode = {
 	arg mode;
 	var overdrive = Dictionary.newFrom([
@@ -366,6 +399,7 @@ s.quit
 ~setMode.value(\arco);
 ~setMode.value(\pizz);
 ~setControl.value(\overdrive, 1.15);
+
 
 /*
 (44100/64).cpsmidi ~= 76.77
