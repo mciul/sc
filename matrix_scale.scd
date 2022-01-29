@@ -52,8 +52,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~mapToDict = {
 	arg keys, value_func;
 	Dictionary.newFrom(
-		keys.collect({
-			arg key, i;
+		keys.collect({ |key, i|
 			[ key, value_func.value(key, i) ]
 		}).as(Array).flatten
 	);
