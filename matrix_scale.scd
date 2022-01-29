@@ -27,6 +27,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~feedbackPaths[~tonic+14] = [\quarter, \fifth]; // 20/9 f = tonic + 13.8240371213406 semitone
 ~feedbackPaths[~tonic+12] = [\half]; // 2f = tonic + 12.0 semitone
 ~feedbackPaths[~tonic+11] = [\third, \fifth]; // 15/8 f = tonic + 10.88268714730222 semitone
+//~feedbackPaths[~tonic+10] = [\quarter, \sixth, \eighth]; // 24/13f = tonic + 10.614273390960768 semitone
 ~feedbackPaths[~tonic+10] = [\quarter, \fifth, \eighth]; // 40/23 f = tonic + 9.580393665964195 semitone
 ~feedbackPaths[~tonic+9] = [\third, \quarter]; // 12/7 f = tonic + 9.331290943962623 semitone
 ~feedbackPaths[~tonic+8] = [\half, \eighth]; // 8/5 f = tonic + 8.136862861351654 semitone
@@ -148,8 +149,8 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		var sig;
 		sig = In.ar(in, ~delayKeys.size);
 		sig = Splay.ar(LeakDC.ar(sig));
-		sig = Limiter.ar(sig);
-		Out.ar(out, sig * 0.5);
+		sig = Compander.ar(sig, sig, thresh: 0.1, slopeAbove:0.2, mul:0.5);
+		Out.ar(out, sig);
 	}).add;
 };
 
@@ -324,7 +325,7 @@ s.quit
 
 ~setMode.value(\arco);
 ~setMode.value(\pizz);
-~setOverdrive.value(1.1);
+~setOverdrive.value(1.15);
 
 /*
 (44100/64).cpsmidi ~= 76.77
