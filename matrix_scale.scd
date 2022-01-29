@@ -267,19 +267,32 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	~gateSynths[in_out].set(\amp, amp, \gate, velocity.min(1));
 };
 
-~controlGates = {
-	arg key, val;
-	if (key == \bend, {
+~controlSettings = Dictionary.newFrom([
+	\bend, 0,
+	\mod, 0,
+	\overdrive, 1
+]);
+
+~controls = Dictionary.newFrom([
+	\bend, { |val|
 		~delayKeys.do({ |delayKey|
 			~delaySynths[delayKey].set(
 				\delaytime, ~delayTimes[delayKey] / val.midiratio
 			);
 		})
-	});
-	if (key == \mod, {
+	},
+	\mod, { |val|
 		~group[\res].set(\depth, val * 1.5);
 		~group[\feedback].set(\depth, (val-0.75).max(0) * 24);
-	});
+	},
+	\overdrive, { |val|
+		~group[\feedback].set(\max_overdrive, val);
+	},
+]);
+
+~setControl = { |key, val|
+	~controlSettings[key] = val;
+	~controls[key].value(val);
 };
 
 ~mapKeyboard = {
@@ -297,24 +310,16 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 	MIDIdef.bend(\bend, {
 		arg val, chan, src;
-		~bend = val.linlin(0,16383, -2, 2);
-		~controlGates.value(\bend, ~bend);
+		~setControl.value(\bend, val.linlin(0,16383, -2, 2));
 	});
 
 	MIDIdef.cc(\modWheel, {
 		arg val, num, chan, src;
 		if (
 			num == 1,
-			{
-				~mod = val.linlin(0,127,0,1);
-				~controlGates.value(\mod, ~mod);
-			}
+			{ ~setControl.value(\mod, val.linlin(0,127,0,1)) }
 		);
 	});
-};
-
-~setOverdrive = { |overdrive|
-	~group[\feedback].set(\max_overdrive, overdrive);
 };
 
 ~setMode = {
@@ -360,7 +365,7 @@ s.quit
 
 ~setMode.value(\arco);
 ~setMode.value(\pizz);
-~setOverdrive.value(1.15);
+~setControl.value(\overdrive, 1.15);
 
 /*
 (44100/64).cpsmidi ~= 76.77
