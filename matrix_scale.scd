@@ -2,22 +2,8 @@
 ~highestNote = 76 - 4; // 76 is the highest note available with default control raite
 ~tonic = ~highestNote-36;
 ~resonatorSynth = \resonator;
-~feedbackSynth = \arcoFeedback;
-~setMode = {
-	arg mode;
-	~loadSynthDefs.value();
-	if (mode == \arco,
-		{
-			~resonatorSynth = \resonator;
-			~feedbackSynth = \arcoFeedback;
-		},
-		{
-			~resonatorSynth = \resonator;
-			~feedbackSynth = \pizzicatoFeedback;
-		}
-	);
-	s.freeAll;
-};
+~feedbackSynth = \feedback;
+
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~delayKeys = [\eighth, \sixth, \fifth, \quarter, \third, \half];
 ~delayPairs = ~delayKeys.collect({ |in|
@@ -133,46 +119,22 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		Out.ar(out, sig);
 	}).add;
 
-	SynthDef(\arcoFeedback, {
-		arg in=0, out=0, amp=0.3, gate=0, depth=0, pathcount=1, max_overdrive=2.5;
+	SynthDef(\feedback, {
+		arg in=0, out=0, amp=0.3, gate=0, depth=0, pathcount=1, max_overdrive=1;
 		var sig, env, overshoot, tremelo, attenuate;
-		overshoot = 1.42;
-
+		overshoot= max_overdrive.linexp(1,2.5,1000,4);
 		tremelo = SinOsc.kr(
 			freq: LFNoise1.kr(1).range(6,9),
 			mul: LFNoise1.kr(1).range(-1, -0.5);
 		) * depth;
 		env = EnvGen.ar(
-			Env.adsr(decayTime: 0.2, sustainLevel:overshoot.reciprocal, releaseTime:0.3),
+			Env.adsr(attackTime: 0.125/f, decayTime: 0.125/f, sustainLevel:overshoot.reciprocal, releaseTime:0.3),
 			gate,
 			levelScale: overshoot,
 			doneAction:0
 		);
-		attenuate=Lag.kr(pathcount.reciprocal, 0.3/pathcount);
-		sig = InFeedback.ar(in) * env * amp.linlin(0, 1, 0.9, max_overdrive) * attenuate * tremelo.dbamp;
-		Out.ar(out, sig);
-	}).add;
-
-	SynthDef(\pizzicatoFeedback, {
-		arg in=0, out=0, amp=0.3, gate=0, depth=0, pathcount=1;
-		var pluckEnv, pluck, sig, env, tremelo, attenuate;
-		tremelo = SinOsc.kr(
-			freq: LFNoise1.kr(1).range(6,9),
-			mul: LFNoise1.kr(1).range(-1, -0.5);
-		) * depth;
-		pluckEnv = EnvGen.ar(Env.triangle((0.25/f), amp.linlin(0,1,0.1,1)), gate);
-		pluck = HPF.ar(BrownNoise.ar(pluckEnv), 40);
-		env = EnvGen.ar(
-			Env.asr(attackTime:0, releaseTime:0.3),
-			gate,
-			doneAction:0
-		);
-		// the goal of attenuate is to keep chords from blowing up
-		// but it's not consistent- I'm not sure if there's a formula for predicting
-		// the correct value
-		//
-		attenuate=Lag.kr(pathcount.reciprocal, 0.3/pathcount);
-		sig = InFeedback.ar(in) * env * attenuate * tremelo.dbamp + pluck;
+		attenuate = Slew.kr(pathcount.reciprocal, 2.5, 10*pathcount);
+		sig = InFeedback.ar(in) * env * amp.linlin(1/64, 1, 1, max_overdrive) * attenuate * tremelo.dbamp;
 		Out.ar(out, sig);
 	}).add;
 
@@ -320,6 +282,19 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	});
 };
 
+~setOverdrive = { |overdrive|
+	~group[\feedback].set(\max_overdrive, overdrive);
+};
+
+~setMode = {
+	arg mode;
+	var overdrive = Dictionary.newFrom([
+		\arco, 2.5,
+		\pizz, 1
+	]);
+	~setOverdrive.value(overdrive[mode]);
+};
+
 ~startServer = {
 	arg mode = \pizz;
 	ServerBoot.add(~makeBusses);
@@ -332,7 +307,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		// remaining functions
 		ServerTree.add(~makeNodes);
 		ServerTree.add(~mapKeyboard);
-		~setMode.value(mode);
+		s.freeAll;
 		s.scope(6,4);
 		s.sync;
 
@@ -349,9 +324,7 @@ s.quit
 
 ~setMode.value(\arco);
 ~setMode.value(\pizz);
-
-~velocityCurve.value(0.1, 0.0001,unity_amp:1/16);
-log(2.7)
+~setOverdrive.value(1.1);
 
 /*
 (44100/64).cpsmidi ~= 76.77
