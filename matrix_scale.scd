@@ -400,7 +400,6 @@ s.quit
 ~setMode.value(\pizz);
 ~setControl.value(\overdrive, 1.15);
 
-
 /*
 (44100/64).cpsmidi ~= 76.77
 
