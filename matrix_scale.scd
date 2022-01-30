@@ -338,22 +338,23 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 /******************************* GUI CONTROLS *******************************/
 
-~makeExpControl = { |w, key, lo, hi|
-	var slider, numberBox;
+~makeControl = { |w, label, spec|
+	var slider, numberBox, key;
+	key = label.toLower.asSymbol;
 	slider = Slider(w, 60@400);
 	numberBox = NumberBox(w, 60@30)
-	.clipLo_(lo)
-	.clipHi_(hi)
-	.decimals_(4-log10(hi - lo).ceil);
+	.clipLo_(spec.clipLo)
+	.clipHi_(spec.clipHi)
+	.decimals_(4-log10(spec.range.abs.ceil.max(1)));
 	StaticText(w, 60@30)
-	.string_(key)
+	.string_(label)
 	.align(\center);
 	slider.action_({ |obj|
-		numberBox.valueAction_(obj.value.linexp(0,1,lo,hi));
+		numberBox.valueAction_(spec.map(obj.value));
 	});
 	numberBox.action_({ |obj|
 		~setControl.value(key, obj.value);
-		slider.value_(obj.value.explin(lo,hi,0,1));
+		slider.value_(spec.unmap(obj.value));
 	});
 	numberBox.valueAction_(~controlSettings[key]);
 };
@@ -391,7 +392,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		.front
 		.alwaysOnTop_(true);
 		w.view.decorator_(FlowLayout(w.bounds, 50@30,15@15));
-		~makeExpControl.value(w, \overdrive, 1, 1.8);
+		~makeControl.value(w, "Overdrive", ControlSpec(1, 1.8, \exp));
 		s.sync;
 		s.scope(6,4, bufsize:s.sampleRate*~delayTimes[\half]);
 
@@ -408,6 +409,9 @@ if(
 
 s.plotTree
 s.quit
+x = ControlSpec(1000,30);
+x.minval
+x.range.abs
 
 ~setMode.value(\arco);
 ~setMode.value(\pizz);
