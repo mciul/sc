@@ -111,12 +111,20 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	SynthDef(\feedback, {
 		arg in=0, out=0, amp=0.3, gate=0, depth=0, pathcount=1,
 		max_overdrive=1;
-		var sig, env, overshoot, tremelo, attenuate;
-		overshoot= max_overdrive.linexp(1,2.5,1000,4);
+		var sig, env, overshoot, tremelo, attenuate, filterEnv;
+		// create pluck with a big attack when overdrive is low
+		// but reduce the attack when velocity is low
+		overshoot= max_overdrive.linexp(1,2.5,amp.linexp(0,1,50,1000),4);
+		// open up more slowly for lower velocity
+		filterEnv = EnvGen.ar(
+			Env.asr(amp.linlin(0,1,12/f,0.125/f),1,0.3),
+			gate
+		);
 		tremelo = SinOsc.kr(
 			freq: LFNoise1.kr(1).range(6,9),
 			mul: LFNoise1.kr(1).range(-1, -0.5);
 		) * depth;
+		// rise to overshoot level, then sustain at unity
 		env = EnvGen.ar(
 			Env.adsr(
 				attackTime: 0.125/f,
@@ -128,9 +136,11 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 			levelScale: overshoot,
 			doneAction:0
 		);
+		// simulate energy dissipating over parallel connections
+		// clamp down quickly, release more slowly
 		attenuate = Slew.kr(pathcount.reciprocal, 2.5, 10*pathcount);
 		sig = (
-			InFeedback.ar(in)
+			LPF.ar(InFeedback.ar(in), filterEnv.linlin(0,1,20,10000))
 			* env
 			* amp.linlin(1/64, 1, 1, max_overdrive)
 			* attenuate
@@ -348,12 +358,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	numberBox.valueAction_(~controlSettings[key]);
 };
 
-Window.closeAll;
-w = Window.new("Controls", Rect(Window.screenBounds.width - 300,100,160,600))
-.front
-.alwaysOnTop_(true);
-w.view.decorator_(FlowLayout(w.bounds, 50@30,15@15));
-~makeExpControl.value(w, \overdrive, 1, 1.8);
+
 
 ~setMode = {
 	arg mode;
@@ -379,8 +384,16 @@ w.view.decorator_(FlowLayout(w.bounds, 50@30,15@15));
 		ServerTree.add(~makeNodes);
 		ServerTree.add(~mapKeyboard);
 		s.freeAll;
-		s.scope(6,4, bufsize:s.sampleRate*~delayTimes[\half]);
 		s.sync;
+
+		Window.closeAll;
+		w = Window.new("Controls", Rect(Window.screenBounds.width - 300,100,160,600))
+		.front
+		.alwaysOnTop_(true);
+		w.view.decorator_(FlowLayout(w.bounds, 50@30,15@15));
+		~makeExpControl.value(w, \overdrive, 1, 1.8);
+		s.sync;
+		s.scope(6,4, bufsize:s.sampleRate*~delayTimes[\half]);
 
 		"done".postln;
 	});
@@ -399,7 +412,9 @@ s.quit
 ~setMode.value(\arco);
 ~setMode.value(\pizz);
 ~setControl.value(\overdrive, 1.15);
-
+10/f
+64/s.sampleRate
+s.scope(6,4, bufsize:s.sampleRate*~delayTimes[\half]);
 /*
 (44100/64).cpsmidi ~= 76.77
 
