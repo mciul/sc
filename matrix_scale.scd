@@ -127,8 +127,8 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		// rise to overshoot level, then sustain at unity
 		env = EnvGen.ar(
 			Env.adsr(
-				attackTime: 0.125/f,
-				decayTime: 0.125/f,
+				attackTime: 0.2/f,
+				decayTime: 0.2/f,
 				sustainLevel:overshoot.reciprocal,
 				releaseTime:0.3
 			),
@@ -153,7 +153,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	}).add;
 
 	SynthDef(\mixOut, {
-		arg in, out, amp=0.3;
+		arg in, out, amp=0.2;
 		var sig;
 		sig = In.ar(in, ~delayKeys.size);
 		sig = Splay.ar(LeakDC.ar(sig));
