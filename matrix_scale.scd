@@ -153,11 +153,11 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	}).add;
 
 	SynthDef(\mixOut, {
-		arg in, out;
+		arg in, out, amp=0.3;
 		var sig;
 		sig = In.ar(in, ~delayKeys.size);
 		sig = Splay.ar(LeakDC.ar(sig));
-		sig = Compander.ar(sig, sig, thresh: 0.1, slopeAbove:0.2, mul:0.5);
+		sig = Compander.ar(sig, sig, thresh: 0.2, slopeAbove:0.2, mul:amp);
 		Out.ar(out, sig);
 	}).add;
 };
