@@ -88,7 +88,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 	SynthDef(\resonator, {
 		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0,
-		delaytime=440.reciprocal, depth=0, decaytime=10;
+		delaytime=440.reciprocal, depth=0, decaytime=10,pathcount=1;
 		var sig, amp, vibrato;
 		amp = (-60 * delaytime/(decaytime)).dbamp;
 		// default latency is 1/ControlRate
@@ -100,6 +100,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		delaytime = delaytime / vibrato.midiratio;
 		sig = In.ar(in);
 		sig = LPF.ar(sig, 10000);
+		sig = sig * Slew.kr(pathcount.reciprocal, 2.5, 10*pathcount);
 		sig = DelayL.ar(
 			sig, maxdelaytime, (delaytime - latency), amp
 		).fold(-1,1);
@@ -109,8 +110,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	}).add;
 
 	SynthDef(\feedback, {
-		arg in=0, out=0, amp=0.3, gate=0, depth=0, pathcount=1,
-		max_overdrive=1;
+		arg in=0, out=0, amp=0.3, gate=0, depth=0, max_overdrive=1;
 		var sig, env, overshoot, tremelo, attenuate, filterEnv;
 		// create pluck with a big attack when overdrive is low
 		// but reduce the attack when velocity is low
@@ -138,12 +138,10 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		);
 		// simulate energy dissipating over parallel connections
 		// clamp down quickly, release more slowly
-		attenuate = Slew.kr(pathcount.reciprocal, 2.5, 10*pathcount);
 		sig = (
 			LPF.ar(InFeedback.ar(in), filterEnv.linlin(0,1,20,10000))
 			* env
 			* amp.linlin(1/64, 1, 1, max_overdrive)
-			* attenuate
 			* tremelo.dbamp
 		);
 		Out.ar(out, sig);
@@ -270,7 +268,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	velocity = ~linkVelocities.value(in_out).maxItem;
 	pathcount = (
 		~delayKeys
-		.collect([_, out])
+		.collect([in, _])
 		.count(~pathUsed.value(_))
 		.max(1)
 	);
@@ -281,9 +279,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	velocity.post;
 	" pathcount=".post;
 	pathcount.postln;
-	~delayKeys.do({ |other_in|
-		~gateSynths[[other_in, out]].set(\pathcount, pathcount)
-	});
+	~delaySynths[in].set(\pathcount, pathcount);
 	~gateSynths[in_out].set(\amp, amp, \gate, velocity.min(1));
 };
 
@@ -409,16 +405,14 @@ if(
 
 s.plotTree
 s.quit
-x = ControlSpec(1000,30);
-x.minval
-x.range.abs
 
 ~setMode.value(\arco);
 ~setMode.value(\pizz);
 ~setControl.value(\overdrive, 1.15);
-10/f
-64/s.sampleRate
-s.scope(6,4, bufsize:s.sampleRate*~delayTimes[\half]);
+
+
+
+
 /*
 (44100/64).cpsmidi ~= 76.77
 
