@@ -221,6 +221,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 					\feedback_out, ~busAt[\feedback][key],
 					\out, ~busAt[\mixOut][key],
 					\delaytime, ~delayTimes[key] * ~controlSettings[\bend].midiratio,
+					\decaytime, 30 * ~delayTimes[key] * f,
 					\depth, ~controlSettings[\mod] * 1.5
 				],
 				~group[\res]
