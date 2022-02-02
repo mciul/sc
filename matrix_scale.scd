@@ -53,7 +53,8 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~controlSettings = Dictionary.newFrom([
 	\bend, 0,
 	\mod, 0,
-	\overdrive, 1
+	\overdrive, 1,
+	\master, 0.2
 ]);
 
 ~mapToDict = {
@@ -299,6 +300,9 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	\overdrive, { |val|
 		~group[\feedback].set(\max_overdrive, val);
 	},
+	\master, { |val|
+		~group[\mixOut].set(\amp, val);
+	}
 ]);
 
 ~setControl = { |key, val|
@@ -335,15 +339,16 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 /******************************* GUI CONTROLS *******************************/
 
-~makeControl = { |w, label, spec|
+~makeControl = {
+	arg view, label, spec, width=60, slider_height=400, box_height=30;
 	var slider, numberBox, key;
 	key = label.toLower.asSymbol;
-	slider = Slider(w, 60@400);
-	numberBox = NumberBox(w, 60@30)
+	slider = Slider(view, width@slider_height);
+	numberBox = NumberBox(view, width@box_height)
 	.clipLo_(spec.clipLo)
 	.clipHi_(spec.clipHi)
 	.decimals_(4-log10(spec.range.abs.ceil.max(1)));
-	StaticText(w, 60@30)
+	StaticText(view, width@box_height)
 	.string_(label)
 	.align(\center);
 	slider.action_({ |obj|
@@ -356,7 +361,43 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	numberBox.valueAction_(~controlSettings[key]);
 };
 
-
+~makeControlWindow = {
+	arg label_specs, control_width=60, control_height=600, box_height=30,
+	border=30, margin=15;
+	var win, window_width, label_spec_pairs;
+	label_spec_pairs = label_specs.clump(2);
+	window_width = (
+		(label_spec_pairs.size * control_width)
+		+ (margin * (label_spec_pairs.size - 1))
+		+ (border * 2)
+	);
+	win = Window.new("Controls", Rect(
+		Window.screenBounds.width - window_width - 200,
+		100,
+		window_width,
+		control_height + (border*2);
+	))
+	.front;
+	win.view.decorator_(
+		FlowLayout(win.bounds, border@border, margin@margin)
+	);
+	label_spec_pairs.do { |label_spec|
+		var label, spec, view, slider_height;
+		slider_height = control_height - (2 * (box_height + margin));
+		#label, spec = label_spec;
+		view = View.new(win, control_width@control_height);
+		view.decorator_(FlowLayout(view.bounds, 0@0, 0@margin));
+		~makeControl.value(
+			view,
+			label,
+			spec,
+			control_width,
+			slider_height,
+			box_height
+		);
+	};
+	win;
+};
 
 ~setMode = {
 	arg mode;
@@ -385,11 +426,10 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		s.sync;
 
 		Window.closeAll;
-		w = Window.new("Controls", Rect(Window.screenBounds.width - 300,100,160,600))
-		.front
-		.alwaysOnTop_(true);
-		w.view.decorator_(FlowLayout(w.bounds, 50@30,15@15));
-		~makeControl.value(w, "Overdrive", ControlSpec(1, 1.8, \exp));
+		w = ~makeControlWindow.value([
+			"Master", ControlSpec(0.005, 1, \exp),
+			"Overdrive", ControlSpec(1, 1.8, \exp)
+		]);
 		s.sync;
 		s.scope(6,4, bufsize:s.sampleRate*~delayTimes[\half]);
 
@@ -410,8 +450,6 @@ s.quit
 ~setMode.value(\arco);
 ~setMode.value(\pizz);
 ~setControl.value(\overdrive, 1.15);
-
-
 
 
 /*
