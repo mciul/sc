@@ -92,8 +92,12 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		delaytime=440.reciprocal, depth=0, decaytime=10,pathcount=1;
 		var sig, amp, vibrato;
 		amp = (-60 * delaytime/(decaytime)).dbamp;
-		// default latency is 1/ControlRate
-		latency = latency.max(ControlRate.ir.reciprocal);
+		latency = (
+			// default latency is 1/ControlRate
+			latency.max(ControlRate.ir.reciprocal)
+			// account for filter effects
+			+ (1.5 / SampleRate.ir)
+		);
 		vibrato = SinOsc.kr(
 			freq: LFNoise1.kr(1).range(6,9),
 			mul: LFNoise1.kr(1).range(0.5, 1);
