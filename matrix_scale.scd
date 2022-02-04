@@ -189,6 +189,10 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 /****************************** NODE TREE SETUP *****************************/
 
+~delayTimeFor = { |key|
+	~delayTimes[key] / ~controlSettings[\bend].midiratio
+};
+
 ~makeNodes = {
 	s.bind({
 		~group = Dictionary.new;
@@ -221,7 +225,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 					\in, ~busAt[\res][key],
 					\feedback_out, ~busAt[\feedback][key],
 					\out, ~busAt[\mixOut][key],
-					\delaytime, ~delayTimes[key] * ~controlSettings[\bend].midiratio,
+					\delaytime, ~delayTimeFor.value(key),
 					\decaytime, 30 * ~delayTimes[key] * f,
 					\depth, ~controlSettings[\mod] * 1.5
 				],
@@ -289,7 +293,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	\bend, { |val|
 		~delayKeys.do({ |delayKey|
 			~delaySynths[delayKey].set(
-				\delaytime, ~delayTimes[delayKey] / val.midiratio
+				\delaytime, ~delayTimeFor.value(delayKey)
 			);
 		})
 	},
@@ -358,7 +362,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		~setControl.value(key, obj.value);
 		slider.value_(spec.unmap(obj.value));
 	});
-	numberBox.valueAction_(~controlSettings[key]);
+	numberBox.valueAction_(spec.default);
 };
 
 ~makeControlWindow = {
@@ -399,6 +403,16 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	win;
 };
 
+~makeControls = { |server|
+	~mapKeyboard.value();
+	Window.closeAll;
+	w = ~makeControlWindow.value([
+		"Master", ControlSpec(0.005, 1, \exp, default:0.2),
+		"Overdrive", ControlSpec(1, 1.8, \exp)
+	]);
+	server.scope(6,4, bufsize:s.sampleRate/f+1);
+};
+
 ~setMode = {
 	arg mode;
 	var overdrive = Dictionary.newFrom([
@@ -412,26 +426,23 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 ~startServer = {
 	arg mode = \pizz;
-	ServerBoot.add(~makeBusses);
+
+	//ServerBoot.add(~makeBusses);
 	ServerQuit.add(~cleanup);
 	s.waitForBoot({
 		"waitForBoot".postln;
+		~makeBusses.value();
 		s.sync;
 
 		~loadSynthDefs.value();
 		// remaining functions
 		ServerTree.add(~makeNodes);
-		ServerTree.add(~mapKeyboard);
+		"groups: ".post;
+		~group.postln;
+		ServerTree.add(~makeControls);
 		s.freeAll;
 		s.sync;
 
-		Window.closeAll;
-		w = ~makeControlWindow.value([
-			"Master", ControlSpec(0.005, 1, \exp),
-			"Overdrive", ControlSpec(1, 1.8, \exp)
-		]);
-		s.sync;
-		s.scope(6,4, bufsize:s.sampleRate*~delayTimes[\half]);
 
 		"done".postln;
 	});
@@ -447,10 +458,10 @@ if(
 s.plotTree
 s.quit
 
+
 ~setMode.value(\arco);
 ~setMode.value(\pizz);
 ~setControl.value(\overdrive, 1.15);
-
 
 /*
 (44100/64).cpsmidi ~= 76.77
