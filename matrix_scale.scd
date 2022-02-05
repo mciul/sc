@@ -89,7 +89,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 	SynthDef(\resonator, {
 		arg in=0, out=~out, feedback_out=0, maxdelaytime=0.2, latency=0,
-		delaytime=440.reciprocal, depth=0, decaytime=10,pathcount=1;
+		delaytime=440.reciprocal, depth=0, decaytime=10, pathcount=1;
 		var sig, amp, vibrato;
 		amp = (-60 * delaytime/(decaytime)).dbamp;
 		latency = (
@@ -105,7 +105,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		delaytime = delaytime / vibrato.midiratio;
 		sig = In.ar(in);
 		sig = LPF.ar(sig, 10000);
-		sig = sig * Slew.kr(pathcount.reciprocal, 2.5, 10*pathcount);
+		sig = sig * Slew.kr(pathcount.reciprocal, 2.8, 10*pathcount);
 		sig = DelayL.ar(
 			sig, maxdelaytime, (delaytime - latency), amp
 		).fold(-1,1);
