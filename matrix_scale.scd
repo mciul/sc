@@ -4,11 +4,7 @@
 ~tonic = ~highestNote-36;
 f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 ~delayKeys = [\eighth, \sixth, \fifth, \quarter, \third, \half];
-~delayPairs = ~delayKeys.collect({ |in|
-	~delayKeys.collect({ |out|
-		[in, out]
-	})
-}).flatten;
+~delayPairs = [~delayKeys, ~delayKeys].allTuples;
 ~delayTimes = Dictionary.newFrom(
 	[~delayKeys, (f * [8,6,5,4,3,2]).reciprocal].flop.flatten;
 );
