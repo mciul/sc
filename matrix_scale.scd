@@ -116,7 +116,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 
 	SynthDef(\feedback, {
 		arg in=0, out=0, amp=0.3, gate=0, depth=0, max_overdrive=1;
-		var sig, env, overshoot, tremelo, attenuate, filterEnv;
+		var sig, env, overshoot, tremelo, filterEnv;
 		// create pluck with a big attack when overdrive is low
 		// but reduce the attack when velocity is low
 		overshoot= max_overdrive.linexp(1,2.5,amp.linexp(0,1,50,1000),4);
@@ -414,7 +414,7 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 		"Master", ControlSpec(0.005, 1, \exp, default:0.2),
 		"Overdrive", ControlSpec(1, 1.8, \exp)
 	]);
-	server.scope(6,4, bufsize:s.sampleRate/f+1);
+	server.scope(6,4, bufsize:s.sampleRate/f);
 };
 
 ~setMode = {
