@@ -413,20 +413,10 @@ f = ~tonic.midicps; // "fundamental" frequency - somewhat arbitrary
 	server.scope(6,4, bufsize:s.sampleRate/f);
 };
 
-~setMode = {
-	arg mode;
-	var overdrive = Dictionary.newFrom([
-		\arco, 2.5,
-		\pizz, 1
-	]);
-	~setOverdrive.value(overdrive[mode]);
-};
 
 /********************************** RUNTIME *********************************/
 
 ~startServer = {
-	arg mode = \pizz;
-
 	//ServerBoot.add(~makeBusses);
 	ServerQuit.add(~cleanup);
 	s.waitForBoot({
@@ -458,9 +448,6 @@ if(
 s.plotTree
 s.quit
 
-
-~setMode.value(\arco);
-~setMode.value(\pizz);
 ~setControl.value(\overdrive, 1.15);
 
 /*
