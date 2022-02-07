@@ -1,7 +1,8 @@
 // Supercollider cheat sheet
 
 // cmd-D - show documentation for selection
-// cmd-Enter - execute selection
+// shift-Enter - execute selection
+// cmd-Enter - execute current block
 // cmd-shift-B - expand selection to the next bracket level
 
 // controlling the server
