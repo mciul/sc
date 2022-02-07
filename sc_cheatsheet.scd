@@ -93,10 +93,14 @@ x.free;
 // with two arrays, it pairs the elements, looping the shorter one:
 [ 0,1,2,3 ] * [ 1, 1, 2, 2, 100, 100, 100, 100 ]
 
-// if you want to get a cartesian product, you have to iterate and then flatten:
+// if you want to get a cartesian product, you can iterate and then flatten:
 
 [1, 2].collect({ |i| [3, 4].collect({ |j| [i, j]}) });
 [1, 2].collect({ |i| [3, 4].collect({ |j| [i, j]}) }).flatten;
+
+// or you can just use allTuples:
+
+[[1, 2], [3, 4]].allTuples
 
 // sc does have list comprehensions but I've never seen anyone use them:
 
